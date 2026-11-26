@@ -1,26 +1,322 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Arena Pokémon de Campeones</title><style>
-body{margin:0;background:#111827;color:white;font-family:system-ui;text-align:center}header{padding:18px;background:#1e293b}h1{font-size:25px}button{background:#facc15;border:0;border-radius:12px;padding:12px;margin:5px;font-weight:bold;cursor:pointer}button:disabled{opacity:.4}.panel{background:#1f2937;border-radius:18px;padding:16px;margin:14px auto;max-width:650px}.hidden{display:none}.bar{height:17px;background:#555;border-radius:12px;overflow:hidden}.fill{height:100%;background:#22c55e}.cards{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}.card{border:2px solid #64748b;border-radius:12px;padding:12px;width:125px;background:#334155}.small{font-size:13px;color:#cbd5e1}.card{box-shadow:0 6px 18px #0005}.portrait{font-size:48px;padding:8px}.rarity{font-size:11px;color:#facc15}select{padding:10px;border-radius:8px;margin:5px;background:#e2e8f0} .fighter{padding:12px;margin:12px 0;border:1px solid #475569;border-radius:12px}</style></head><body><header><h1>⚡ Arena Pokémon de Campeones 🏆</h1><div>🪙 <span id="coins">300</span> monedas · <span id="turnLabel">Jugador 1</span></div></header><nav><button onclick="show('battle')">⚔️ Batalla</button><button onclick="show('shop')">🎁 Sobres</button><button onclick="show('mini')">🎮 Minijuegos</button><button onclick="show('dex')">📖 Índice</button><button onclick="show('trade')">🔄 Intercambio</button></nav>
-<section id="battle" class="panel"><h2>Batalla por turnos · mismo dispositivo</h2><div id="selectors"></div><button onclick="chooseFighters()">Elegir Pokémon y comenzar</button><div id="fighters"></div><p id="status">¡Que comience la batalla!</p><button onclick="attack(false)">Ataque rápido</button><button onclick="attack(true)">💥 Súper ataque</button><button id="healBtn" onclick="heal()">💚 Curación</button><p class="small" id="healInfo"></p><button onclick="newBattle()">Nueva batalla</button></section>
-<section id="shop" class="panel hidden"><h2>Tienda de sobres</h2><div id="packs"></div><p id="reward"></p></section>
-<section id="mini" class="panel hidden"><h2>Minijuegos para ganar monedas</h2><button onclick="memory()">🧠 Memoria: encontrar pareja</button><button onclick="catchGame()">⚡ Atrapa al Pokémon</button><p id="miniResult"></p><div id="miniArea"></div></section>
-<section id="dex" class="panel hidden"><h2>Índice de cartas</h2><p>👑 Charizard · 9,999 PV · 1% en sobre Ultra Secreto</p><div id="collection" class="cards"></div></section>
-<section id="trade" class="panel hidden"><h2>Intercambio local</h2><p>Elijan cartas de sus colecciones para intercambiarlas entre jugadores.</p><div id="tradeArea"></div></section>
+
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Arena Pokémon de Campeones</title>
+<style>
+body{margin:0;background:radial-gradient(circle at 20% 10%,#7c3aed,transparent 40%),radial-gradient(circle at 85% 15%,#f97316,transparent 40%),linear-gradient(150deg,#172554,#312e81,#111827);color:white;font-family:system-ui;text-align:center;min-height:100vh}
+header{padding:18px;background:#1e293b}
+h1{font-size:25px}
+button{background:#facc15;border:0;border-radius:12px;padding:12px;margin:5px;font-weight:bold;cursor:pointer}
+button:disabled{opacity:.4}
+.panel{background:#1f2937;border-radius:18px;padding:16px;margin:14px auto;max-width:650px;border:1px solid #ffffff44}
+.hidden{display:none}
+.bar{height:17px;background:#555;border-radius:12px;overflow:hidden}
+.fill{height:100%;background:#22c55e}
+.cards{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.card{border:2px solid #64748b;border-radius:12px;padding:12px;width:125px;background:#334155;box-shadow:0 6px 18px #0005}
+.small{font-size:13px;color:#cbd5e1}
+.portrait{font-size:48px;padding:8px}
+.rarity{font-size:11px;color:#facc15}
+select{padding:10px;border-radius:8px;margin:5px;background:#e2e8f0}
+.fighter{padding:12px;margin:12px 0;border:1px solid #475569;border-radius:12px}
+.hero{max-width:800px;margin:auto;padding:30px 14px}
+.dragon{font-size:clamp(95px,22vw,185px);animation:float 3s ease-in-out infinite;filter:drop-shadow(0 0 24px orange)}
+.hero h2{font-size:clamp(27px,6vw,48px)}
+.menu-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;max-width:650px;margin:25px auto}
+.menu-grid button{min-height:90px;font-size:18px;background:linear-gradient(130deg,#facc15,#fb923c);box-shadow:0 8px 25px #0006}
+.arena{background:linear-gradient(#1d4ed8 0%,#3730a3 50%,#166534 51%);padding:16px;border-radius:20px}
+.back{background:#bfdbfe}
+@keyframes float{50%{transform:translateY(-15px)}}
+@media(min-width:700px){.menu-grid{grid-template-columns:repeat(3,1fr)}}
+nav{display:none}
+</style>
+</head>
+<body>
+<header>
+<h1>⚡ Arena Pokémon de Campeones 🏆</h1>
+<div>🪙 <span id="coins">300</span> monedas · <span id="turnLabel">Jugador 1</span></div>
+</header>
+
+<section id="home" class="hero">
+<p>✨ LA AVENTURA COMIENZA ✨</p>
+<div class="dragon">🐉🔥</div>
+<h2>ARENA POKÉMON DE CAMPEONES</h2>
+<p>¡Colecciona, entrena y conviértete en campeón!</p>
+<div class="menu-grid">
+<button onclick="show('battle')">⚔️ BATALLA</button>
+<button onclick="show('shop')">🎁 TIENDA</button>
+<button onclick="show('mini')">🎮 MINIJUEGOS</button>
+<button onclick="show('dex')">📖 COLECCIÓN</button>
+<button onclick="show('trade')">🔄 INTERCAMBIOS</button>
+</div>
+<p>👑 Charizard · 9,999 PV · 1% en sobre Ultra Secreto</p>
+</section>
+
+<nav>
+<button onclick="show('battle')">⚔️ Batalla</button>
+<button onclick="show('shop')">🎁 Sobres</button>
+<button onclick="show('mini')">🎮 Minijuegos</button>
+<button onclick="show('dex')">📖 Índice</button>
+<button onclick="show('trade')">🔄 Intercambio</button>
+</nav>
+
+<section id="battle" class="panel hidden">
+<button class="back" onclick="show('home')">← Menú principal</button>
+<h2>Batalla por turnos · mismo dispositivo</h2>
+<div id="selectors"></div>
+<button onclick="chooseFighters()">Elegir Pokémon y comenzar</button>
+<div class="arena"><div id="fighters"></div></div>
+<p id="status">¡Que comience la batalla!</p>
+<button onclick="attack(false)">Ataque rápido</button>
+<button onclick="attack(true)">💥 Súper ataque</button>
+<button id="healBtn" onclick="heal()">💚 Curación</button>
+<p class="small" id="healInfo"></p>
+<button onclick="newBattle()">Nueva batalla</button>
+</section>
+
+<section id="shop" class="panel hidden">
+<button class="back" onclick="show('home')">← Menú principal</button>
+<h2>Tienda de sobres</h2>
+<div id="packs"></div>
+<p id="reward"></p>
+</section>
+
+<section id="mini" class="panel hidden">
+<button class="back" onclick="show('home')">← Menú principal</button>
+<h2>Minijuegos para ganar monedas</h2>
+<button onclick="memory()">🧠 Memoria: encontrar pareja</button>
+<button onclick="catchGame()">⚡ Atrapa al Pokémon</button>
+<p id="miniResult"></p>
+<div id="miniArea"></div>
+</section>
+
+<section id="dex" class="panel hidden">
+<button class="back" onclick="show('home')">← Menú principal</button>
+<h2>Índice de cartas</h2>
+<p>👑 Charizard · 9,999 PV · 1% en sobre Ultra Secreto</p>
+<div id="collection" class="cards"></div>
+</section>
+
+<section id="trade" class="panel hidden">
+<button class="back" onclick="show('home')">← Menú principal</button>
+<h2>Intercambio local</h2>
+<p>Elijan cartas de sus colecciones para intercambiarlas entre jugadores.</p>
+<div id="tradeArea"></div>
+</section>
+
 <script>
-const defs=[{name:'Pikachu',hp:310,rarity:0},{name:'Bulbasaur',hp:310,rarity:0},{name:'Squirtle',hp:310,rarity:0},{name:'Eevee',hp:380,rarity:1},{name:'Lucario',hp:550,rarity:2},{name:'Mewtwo',hp:950,rarity:3},{name:'Rayquaza',hp:1400,rarity:4},{name:'Charizard',hp:9999,rarity:5}];
-const packNames=['Común','Raro','Épico','Legendario','Ultra Secreto'],costs=[100,300,600,1000,2500];
-let state=JSON.parse(localStorage.getItem('arenaLiam')||'null')||{coins:300,owners:[[0,1],[2,0]],cooldown:[0,0],wins:[0,0]};
-let current=[0,2],hp=[310,310],turn=0,ended=false;const emoji=['⚡','🌿','💧','✨','🥊','🔮','🐉','🔥'];const rarityNames=['Común','Rara','Épica','Legendaria','Ultra secreta','Suprema'];
-function save(){localStorage.setItem('arenaLiam',JSON.stringify(state))}function el(x){return document.getElementById(x)}
-function show(x){for(let id of ['battle','shop','mini','dex','trade'])el(id).classList.toggle('hidden',id!==x);render()}
-function render(){el('coins').textContent=state.coins;el('turnLabel').textContent='Turno: Jugador '+(turn+1);el('fighters').innerHTML=current.map((idx,i)=>`<div class="fighter"><div class="portrait">${emoji[idx]}</div><h3>Jugador ${i+1}: ${defs[idx].name} ${hp[i]}/${defs[idx].hp} PV</h3><div class="bar"><div class="fill" style="width:${100*hp[i]/defs[idx].hp}%"></div></div></div>`).join('');el('healInfo').textContent='Curación: '+(state.cooldown[turn]>Date.now()?Math.ceil((state.cooldown[turn]-Date.now())/1000)+' s restantes':'disponible');el('healBtn').disabled=ended||state.cooldown[turn]>Date.now();el('packs').innerHTML=packNames.map((n,i)=>`<button onclick="buy(${i})">${n} · ${costs[i]} 🪙</button>`).join('');el('collection').innerHTML=defs.map((d,i)=>`<div class="card"><div class="portrait">${emoji[i]}</div>${d.rarity===5?'👑 ':''}<b>${d.name}</b><br>${d.hp} PV<br><span class="rarity">${rarityNames[d.rarity]}</span><br><span class="small">J1: ${state.owners[0].filter(x=>x===i).length} · J2: ${state.owners[1].filter(x=>x===i).length}</span></div>`).join('');el('selectors').innerHTML=[0,1].map(i=>`<label>Jugador ${i+1}: <select id="fighter${i}">${[...new Set(state.owners[i])].map(x=>`<option value="${x}" ${current[i]===x?'selected':''}>${defs[x].name} (${defs[x].hp} PV)</option>`).join('')}</select></label>`).join('<br>');el('tradeArea').innerHTML=[0,1].map(i=>`Jugador ${i+1}: <select id="trade${i}">${state.owners[i].map((x,j)=>`<option value="${j}">${defs[x].name}</option>`).join('')}</select><br>`).join('')+'<button onclick="trade()">Intercambiar una carta por otra</button>'}
-function chooseFighters(){let a=+el('fighter0').value,b=+el('fighter1').value;current=[a,b];hp=current.map(i=>defs[i].hp);turn=0;ended=false;el('status').textContent='¡Combate iniciado!';render()}
-function finish(){if(hp[1-turn]===0){ended=true;state.wins[turn]++;state.coins+=150;el('status').textContent='🏆 ¡Ganó el Jugador '+(turn+1)+'! +150 monedas';save();return true}return false}
-function attack(superAttack){if(ended)return;let damage=superAttack?120:55;hp[1-turn]=Math.max(0,hp[1-turn]-damage);el('status').textContent=defs[current[turn]].name+' hizo '+damage+' de daño';if(!finish())turn=1-turn;render()}
-function heal(){if(ended||state.cooldown[turn]>Date.now())return;hp[turn]=Math.min(defs[current[turn]].hp,hp[turn]+100);state.cooldown[turn]=Date.now()+60000;el('status').textContent='Jugador '+(turn+1)+' recuperó hasta 100 PV';turn=1-turn;save();render()}
-function newBattle(){current=[state.owners[0][0],state.owners[1][0]];hp=current.map(i=>defs[i].hp);turn=0;ended=false;el('status').textContent='¡Nueva batalla!';render()}
-function buy(i){if(state.coins<costs[i]){el('reward').textContent='No tienes suficientes monedas';return}state.coins-=costs[i];let r=Math.random(),idx;if(i===4)idx=r<.01?7:6;else if(i===0)idx=r<.001?7:Math.floor(Math.random()*3);else if(i===1)idx=r<.02?5:3;else if(i===2)idx=r<.05?6:4;else idx=r<.05?7:5;state.owners[0].push(idx);el('reward').textContent='🎉 ¡Conseguiste '+defs[idx].name+'! Se agregó a Jugador 1.';save();render()}
-function memory(){let vals=[0,0,1,1,2,2].sort(()=>Math.random()-.5),opened=[],matched=[];el('miniResult').textContent='Encuentra las tres parejas (+100 monedas)';el('miniArea').innerHTML=vals.map((v,i)=>`<button id="mem${i}" onclick="flip(${i})">❓</button>`).join('');window.flip=i=>{if(opened.length===2||matched.includes(i)||opened.includes(i))return;opened.push(i);el('mem'+i).textContent=defs[vals[i]].name;if(opened.length===2){let [a,b]=opened;setTimeout(()=>{if(vals[a]===vals[b]){matched.push(a,b);if(matched.length===6){state.coins+=100;save();el('miniResult').textContent='¡Ganaste 100 monedas!';render()}}else{el('mem'+a).textContent='❓';el('mem'+b).textContent='❓'}opened=[]},650)}}}
-function catchGame(){let hits=0;el('miniResult').textContent='Atrapa cinco Pokémon para ganar 75 monedas';el('miniArea').innerHTML='<button id="catchBtn">⚡ ¡Atrápalo!</button>';el('catchBtn').onclick=()=>{hits++;if(hits===5){state.coins+=75;save();el('miniResult').textContent='¡Ganaste 75 monedas!';el('miniArea').innerHTML='';render()}else el('miniResult').textContent=hits+'/5 capturados'}}
-function trade(){if(!state.owners[0].length||!state.owners[1].length)return;let a=+el('trade0').value,b=+el('trade1').value;let x=state.owners[0][a],y=state.owners[1][b];state.owners[0][a]=y;state.owners[1][b]=x;save();render()}
-setInterval(()=>{if(!el('battle').classList.contains('hidden')){el('healInfo').textContent='Curación: '+(state.cooldown[turn]>Date.now()?Math.ceil((state.cooldown[turn]-Date.now())/1000)+' s restantes':'disponible');el('healBtn').disabled=ended||state.cooldown[turn]>Date.now()}},500);newBattle();
-</script></body></html>
+const defs=[
+{name:'Pikachu',hp:310,rarity:0},
+{name:'Bulbasaur',hp:310,rarity:0},
+{name:'Squirtle',hp:310,rarity:0},
+{name:'Eevee',hp:380,rarity:1},
+{name:'Lucario',hp:550,rarity:2},
+{name:'Mewtwo',hp:950,rarity:3},
+{name:'Rayquaza',hp:1400,rarity:4},
+{name:'Charizard',hp:9999,rarity:5}
+];
+
+const packNames=['Común','Raro','Épico','Legendario','Ultra Secreto'];
+const costs=[100,300,600,1000,2500];
+
+let state=JSON.parse(localStorage.getItem('arenaLiam')||'null')||{
+coins:300,
+owners:[[0,1],[2,0]],
+cooldown:[0,0],
+wins:[0,0]
+};
+
+let current=[0,2],hp=[310,310],turn=0,ended=false;
+const emoji=['⚡','🌿','💧','✨','🥊','🔮','🐉','🔥'];
+const rarityNames=['Común','Rara','Épica','Legendaria','Ultra secreta','Suprema'];
+
+function save(){
+localStorage.setItem('arenaLiam',JSON.stringify(state))
+}
+
+function el(x){
+return document.getElementById(x)
+}
+
+function show(x){
+for(let id of ['home','battle','shop','mini','dex','trade'])
+el(id).classList.toggle('hidden',id!==x);
+render()
+}
+
+function render(){
+el('coins').textContent=state.coins;
+el('turnLabel').textContent='Turno: Jugador '+(turn+1);
+
+el('fighters').innerHTML=current.map((idx,i)=>`
+<div class="fighter">
+<div class="portrait">${emoji[idx]}</div>
+<h3>Jugador ${i+1}: ${defs[idx].name} ${hp[i]}/${defs[idx].hp} PV</h3>
+<div class="bar"><div class="fill" style="width:${100*hp[i]/defs[idx].hp}%"></div></div>
+</div>`).join('');
+
+el('healInfo').textContent='Curación: '+(state.cooldown[turn]>Date.now()?Math.ceil((state.cooldown[turn]-Date.now())/1000)+' s restantes':'disponible');
+el('healBtn').disabled=ended||state.cooldown[turn]>Date.now();
+
+el('packs').innerHTML=packNames.map((n,i)=>`<button onclick="buy(${i})">${n} · ${costs[i]} 🪙</button>`).join('');
+
+el('collection').innerHTML=defs.map((d,i)=>`
+<div class="card">
+<div class="portrait">${emoji[i]}</div>
+${d.rarity===5?'👑 ':''}<b>${d.name}</b><br>
+${d.hp} PV<br>
+<span class="rarity">${rarityNames[d.rarity]}</span><br>
+<span class="small">J1: ${state.owners[0].filter(x=>x===i).length} · J2: ${state.owners[1].filter(x=>x===i).length}</span>
+</div>`).join('');
+
+el('selectors').innerHTML=[0,1].map(i=>`
+<label>Jugador ${i+1}:
+<select id="fighter${i}">
+${[...new Set(state.owners[i])].map(x=>`<option value="${x}" ${current[i]===x?'selected':''}>${defs[x].name} (${defs[x].hp} PV)</option>`).join('')}
+</select></label>`).join('<br>');
+
+el('tradeArea').innerHTML=[0,1].map(i=>`
+Jugador ${i+1}:
+<select id="trade${i}">
+${state.owners[i].map((x,j)=>`<option value="${j}">${defs[x].name}</option>`).join('')}
+</select><br>`).join('')+'<button onclick="trade()">Intercambiar una carta por otra</button>'
+}
+
+function chooseFighters(){
+let a=+el('fighter0').value,b=+el('fighter1').value;
+current=[a,b];
+hp=current.map(i=>defs[i].hp);
+turn=0;
+ended=false;
+el('status').textContent='¡Combate iniciado!';
+render()
+}
+
+function finish(){
+if(hp[1-turn]===0){
+ended=true;
+state.wins[turn]++;
+state.coins+=150;
+el('status').textContent='🏆 ¡Ganó el Jugador '+(turn+1)+'! +150 monedas';
+save();
+return true
+}
+return false
+}
+
+function attack(superAttack){
+if(ended)return;
+let damage=superAttack?120:55;
+hp[1-turn]=Math.max(0,hp[1-turn]-damage);
+el('status').textContent=defs[current[turn]].name+' hizo '+damage+' de daño';
+if(!finish())turn=1-turn;
+render()
+}
+
+function heal(){
+if(ended||state.cooldown[turn]>Date.now())return;
+hp[turn]=Math.min(defs[current[turn]].hp,hp[turn]+100);
+state.cooldown[turn]=Date.now()+60000;
+el('status').textContent='Jugador '+(turn+1)+' recuperó hasta 100 PV';
+turn=1-turn;
+save();
+render()
+}
+
+function newBattle(){
+current=[state.owners[0][0],state.owners[1][0]];
+hp=current.map(i=>defs[i].hp);
+turn=0;
+ended=false;
+el('status').textContent='¡Nueva batalla!';
+render()
+}
+
+function buy(i){
+if(state.coins<costs[i]){
+el('reward').textContent='No tienes suficientes monedas';
+return
+}
+state.coins-=costs[i];
+let r=Math.random(),idx;
+if(i===4)idx=r<.01?7:6;
+else if(i===0)idx=r<.001?7:Math.floor(Math.random()*3);
+else if(i===1)idx=r<.02?5:3;
+else if(i===2)idx=r<.05?6:4;
+else idx=r<.05?7:5;
+state.owners[0].push(idx);
+el('reward').textContent='🎉 ¡Conseguiste '+defs[idx].name+'! Se agregó a Jugador 1.';
+save();
+render()
+}
+
+function memory(){
+let vals=[0,0,1,1,2,2].sort(()=>Math.random()-.5),opened=[],matched=[];
+el('miniResult').textContent='Encuentra las tres parejas (+100 monedas)';
+el('miniArea').innerHTML=vals.map((v,i)=>`<button id="mem${i}" onclick="flip(${i})">❓</button>`).join('');
+window.flip=i=>{
+if(opened.length===2||matched.includes(i)||opened.includes(i))return;
+opened.push(i);
+el('mem'+i).textContent=defs[vals[i]].name;
+if(opened.length===2){
+let [a,b]=opened;
+setTimeout(()=>{
+if(vals[a]===vals[b]){
+matched.push(a,b);
+if(matched.length===6){
+state.coins+=100;
+save();
+el('miniResult').textContent='¡Ganaste 100 monedas!';
+render()
+}
+}else{
+el('mem'+a).textContent='❓';
+el('mem'+b).textContent='❓'
+}
+opened=[]
+},650)
+}
+}
+}
+
+function catchGame(){
+let hits=0;
+el('miniResult').textContent='Atrapa cinco Pokémon para ganar 75 monedas';
+el('miniArea').innerHTML='<button id="catchBtn">⚡ ¡Atrápalo!</button>';
+el('catchBtn').onclick=()=>{
+hits++;
+if(hits===5){
+state.coins+=75;
+save();
+el('miniResult').textContent='¡Ganaste 75 monedas!';
+el('miniArea').innerHTML='';
+render()
+}else el('miniResult').textContent=hits+'/5 capturados'
+}
+}
+
+function trade(){
+if(!state.owners[0].length||!state.owners[1].length)return;
+let a=+el('trade0').value,b=+el('trade1').value;
+let x=state.owners[0][a],y=state.owners[1][b];
+state.owners[0][a]=y;
+state.owners[1][b]=x;
+save();
+render()
+}
+
+setInterval(()=>{
+if(!el('battle').classList.contains('hidden')){
+el('healInfo').textContent='Curación: '+(state.cooldown[turn]>Date.now()?Math.ceil((state.cooldown[turn]-Date.now())/1000)+' s restantes':'disponible');
+el('healBtn').disabled=ended||state.cooldown[turn]>Date.now()
+}
+},500);
+
+newBattle();
+show("home");
+</script>
+</body>
+</html>
