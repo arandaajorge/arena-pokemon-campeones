@@ -226,14 +226,15 @@ save();
 render()
 }
 
+
 function newBattle(){
-current=[state.owners[0][0],state.owners[1][0]];
-hp=current.map(i=>defs[i].hp);
-turn=0;
-ended=false;
-el('status').textContent='¡Nueva batalla!';
-render()
+  hp=current.map(i=>defs[i].hp);
+  turn=0;
+  ended=false;
+  el('status').textContent='¡Nueva batalla! Los Pokémon están listos.';
+  render();
 }
+
 
 function buy(i){
 if(state.coins<costs[i]){
