@@ -1171,6 +1171,128 @@ function cpuDrawActions(player) {
   return box;
 }
 
+function cpuDescribeEvent(event) {
+
+  if (!event) {
+
+    return '¡Comienza la batalla contra CPU!';
+  }
+
+  const actor =
+    Number(event.player) === 1
+      ? '👤 Tú'
+      : '🤖 CPU';
+
+  const pokemon =
+    event.pokemon || 'Pokémon';
+
+  const target =
+    event.target || 'Rival';
+
+  const damage =
+    Number(event.damage || 0);
+
+  const healing =
+    Number(event.healing || 0);
+
+  const labels = {
+    normal: 'Ataque normal',
+    strong: 'Ataque fuerte',
+    elemental: 'Ataque elemental',
+    ultimate: 'Ataque definitivo'
+  };
+
+  let message = '';
+
+  switch (event.action) {
+
+    case 'normal':
+    case 'strong':
+    case 'elemental':
+    case 'ultimate':
+
+      message =
+        actor + ': ' +
+        pokemon + ' utilizó ' +
+        labels[event.action] + '.';
+
+      if (event.missed) {
+
+        message += ' ¡El ataque falló!';
+
+      } else {
+
+        message +=
+          ' ' + target +
+          ' recibió ' + damage +
+          ' puntos de daño.';
+
+        if (event.critical) {
+          message += ' ¡Golpe crítico!';
+        }
+
+        if (Number(event.multiplier) > 1) {
+          message += ' ¡Muy efectivo!';
+        }
+
+        if (Number(event.multiplier) < 1) {
+          message += ' Poco efectivo.';
+        }
+      }
+
+      break;
+
+    case 'shield':
+
+      message =
+        actor + ': ' +
+        pokemon + ' activó su escudo.';
+
+      break;
+
+    case 'boost':
+
+      message =
+        actor + ': ' +
+        pokemon + ' activó su potenciador.';
+
+      break;
+
+    case 'heal':
+
+      message =
+        actor + ': ' +
+        pokemon + ' recuperó ' +
+        healing + ' PV.';
+
+      break;
+
+    case 'switch':
+
+      message =
+        actor + ': retiró a ' +
+        pokemon + ' y cambió de Pokémon.';
+
+      break;
+
+    case 'status_skip':
+
+      message =
+        actor + ': ' +
+        pokemon +
+        ' perdió su turno por un efecto de estado.';
+
+      break;
+
+    default:
+
+      message =
+        actor + ': movimiento registrado.';
+  }
+
+  return message;
+}
+
 function drawBattle() {
 
   const box = el('cpuBattle');
