@@ -1155,7 +1155,26 @@ function drawBattle() {
     abandon
   );
 }
+function drawResume() {
 
+  el('cpuResume').replaceChildren();
+
+  el('cpuResume').hidden = true;
+
+  el('cpuSetup').hidden = !!session;
+
+  if (session) {
+
+    drawBattle();
+
+  } else {
+
+    el('cpuBattle').hidden = true;
+
+    el('cpuResult').hidden = true;
+
+  }
+}
   
   async function open() {
 
