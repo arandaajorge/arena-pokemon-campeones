@@ -152,11 +152,26 @@
 
         dialog.classList.remove('lg-pack-opening');
 
-        cards.forEach((card, index) => {
-          card.classList.add('lg-pack-reveal');
-          card.style.animationDelay =
-            (index * 350) + 'ms';
-        });
+        // Ocultar todas las cartas antes de revelarlas.
+cards.forEach(card => {
+  card.style.display = 'none';
+  card.style.animationDelay = '';
+});
+
+// Revelar una carta cada 900 milisegundos.
+cards.forEach((card, index) => {
+  later(() => {
+    card.style.display = '';
+    card.classList.add('lg-pack-reveal');
+    card.style.animationDelay = '0ms';
+
+    window.LiamcitoEffects?.particles(
+      card,
+      '#facc15',
+      12
+    );
+  }, index * 900);
+});
 
         const duration =
           650 + (cards.length - 1) * 350;
