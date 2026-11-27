@@ -79,10 +79,18 @@
       String(detail.packName || 'tu sobre')+
       '!';
 
-    stage.append(envelope,title);
+    const hint = document.createElement('div');
 
-    rewards.before(stage);
-    currentStage = stage;
+hint.className = 'lg-pack-hint';
+hint.innerHTML = `
+  <span class="lg-pack-hand">👆</span>
+  <strong>¡TOCA EL REGALO PARA ABRIRLO!</strong>
+`;
+
+stage.append(envelope,title,hint);
+
+rewards.before(stage);
+currentStage = stage;
 
     cards.forEach(card => {
       const rarityColor =
