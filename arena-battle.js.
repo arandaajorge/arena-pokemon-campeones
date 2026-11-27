@@ -641,9 +641,24 @@
 
     eventBox.className = 'ab-event';
 
-    const myBox = fighter(grid,me,true);
+    
+const myBox = fighter(grid,me,true);
 
-    if (ev) {
+// Efectos visuales de movimientos confirmados.
+window.LiamcitoOnlineEffects?.play({
+  matchId:session.match_id,
+  version:session.version,
+  event:ev,
+  game:s,
+  playerNumber:session.player_number,
+  enemyBox,
+  myBox,
+  finished:done,
+  winnerId:session.winner_id,
+  userId:uid
+});
+
+if (ev) {
 
       const eventKey =
         session.match_id + ':'
