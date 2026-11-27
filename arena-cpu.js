@@ -713,6 +713,449 @@ document.head.append(battleCss);
     return valid;
   }
 
+function cpuNode(tag, text, className) {
+
+  const node = document.createElement(tag);
+
+  if (text !== undefined && text !== null) {
+    node.textContent = text;
+  }
+
+  if (className) {
+    node.className = className;
+  }
+
+  return node;
+}
+
+function cpuPokemonImage(pokemon) {
+
+  const fallback = () => {
+
+    const emoji = cpuNode(
+      'div',
+      pokemon.emoji || '✨'
+    );
+
+    emoji.style.fontSize = '40px';
+
+    return emoji;
+  };
+
+  if (!pokemon.image_url) {
+    return fallback();
+  }
+
+  const img = document.createElement('img');
+
+  img.src = pokemon.image_url;
+  img.alt = pokemon.name;
+  img.loading = 'lazy';
+
+  img.onerror = () => {
+    img.replaceWith(fallback());
+  };
+
+  return img;
+}
+
+function cpuElementName(element) {
+
+  const labels = {
+    normal: '⭐ Normal',
+    fire: '🔥 Fuego',
+    water: '💧 Agua',
+    grass: '🌱 Planta',
+    electric: '⚡ Eléctrico',
+    ice: '❄️ Hielo',
+    fighting: '🥊 Lucha',
+    poison: '☠️ Veneno',
+    ground: '🟤 Tierra',
+    flying: '🪽 Volador',
+    psychic: '🔮 Psíquico',
+    bug: '🐛 Bicho',
+    rock: '🪨 Roca',
+    ghost: '👻 Fantasma',
+    dragon: '🐉 Dragón',
+    dark: '🌑 Siniestro',
+    steel: '⚙️ Acero',
+    fairy: '✨ Hada'
+  };
+
+  return labels[element] || element || '—';
+}
+
+function cpuBar(value, maximum, color) {
+
+  const bar = cpuNode(
+    'div',
+    null,
+    'cpu-bar'
+  );
+
+  const fill = cpuNode(
+    'div',
+    null,
+    'cpu-bar-fill'
+  );
+
+  const percent = Math.max(
+    0,
+    Math.min(
+      100,
+      Number(value) /
+      Math.max(1, Number(maximum)) * 100
+    )
+  );
+
+  fill.style.width = percent + '%';
+  fill.style.background = color;
+
+  bar.append(fill);
+
+  return bar;
+}
+
+function cpuDrawReserves(player) {
+
+  const box = cpuNode(
+    'div',
+    null,
+    'cpu-reserves'
+  );
+
+  (player.team || []).forEach((p, i) => {
+
+    const card = cpuNode(
+      'div',
+      null,
+      'cpu-reserve'
+    );
+
+    card.classList.toggle(
+      'active',
+      i === Number(player.active)
+    );
+
+    card.classList.toggle(
+      'defeated',
+      Number(p.hp) <= 0
+    );
+
+    card.append(
+      cpuPokemonImage(p),
+      cpuNode('span', p.name),
+      cpuNode(
+        'span',
+        p.hp + '/' + p.max_hp
+      )
+    );
+
+    box.append(card);
+  });
+
+  return box;
+}
+
+function cpuDrawFighter(player, label) {
+
+  const card = cpuNode(
+    'div',
+    null,
+    'cpu-fighter'
+  );
+
+  const pokemon =
+    player.team?.[Number(player.active)];
+
+  card.append(
+    cpuNode(
+      'div',
+      label,
+      'cpu-fighter-label'
+    ),
+    cpuNode('h3', player.nickname || label)
+  );
+
+  if (!pokemon) {
+
+    card.append(
+      cpuNode('p', 'Sin Pokémon activo')
+    );
+
+    return card;
+  }
+
+  card.append(
+    cpuPokemonImage(pokemon),
+    cpuNode('h3', pokemon.name),
+    cpuNode(
+      'p',
+      cpuElementName(pokemon.element)
+    )
+  );
+
+  const ratio =
+    Number(pokemon.hp) /
+    Math.max(1, Number(pokemon.max_hp));
+
+  const hpColor =
+    ratio > 0.5 ? '#52df7c' :
+    ratio > 0.25 ? '#facc15' :
+    '#ef4444';
+
+  card.append(
+    cpuBar(
+      pokemon.hp,
+      pokemon.max_hp,
+      hpColor
+    ),
+    cpuNode(
+      'p',
+      pokemon.hp + ' / ' +
+      pokemon.max_hp + ' PV'
+    ),
+    cpuNode(
+      'p',
+      '⚡ Energía: ' + (player.energy ?? 0)
+    )
+  );
+
+  const condition =
+    pokemon.status === 'normal'
+      ? '🟢 Sin alteraciones'
+      : '⚠️ ' + pokemon.status +
+        ' · ' +
+        (pokemon.status_turns || 0) +
+        ' turnos';
+
+  card.append(
+    cpuNode('p', condition),
+    cpuNode(
+      'p',
+      '🛡️ Escudo: ' +
+      (player.shield ? 'Activo' : 'No')
+    ),
+    cpuNode(
+      'p',
+      '💪 Potenciador: ' +
+      (player.boost ? 'Activo' : 'No')
+    ),
+    cpuDrawReserves(player)
+  );
+
+  return card;
+}
+
+function cpuDrawActions(player) {
+
+  const box = cpuNode(
+    'div',
+    null,
+    'cpu-battle-actions'
+  );
+
+  const pokemon =
+    player.team?.[Number(player.active)];
+
+  const cooldowns =
+    pokemon?.cooldowns || {};
+
+  const actions = [
+    ['normal', '⚔️ Ataque normal', '#2563eb'],
+    ['strong', '💥 Ataque fuerte', '#c2410c'],
+    ['elemental', '🔥 Ataque elemental', '#7e22ce'],
+    ['ultimate', '⚡ Ataque definitivo', '#854d0e'],
+    ['shield', '🛡️ Escudo', '#1e40af'],
+    ['boost', '💪 Potenciador', '#9333ea'],
+    ['heal', '💚 Curación', '#166534'],
+    ['switch', '🔄 Cambiar Pokémon', '#475569']
+  ];
+
+  for (const [action, label, color] of actions) {
+
+    const button = cpuNode(
+      'button',
+      label
+    );
+
+    button.type = 'button';
+
+    button.dataset.action = action;
+
+    button.style.background = color;
+
+    // Se habilitarán en la siguiente etapa.
+    button.disabled = true;
+
+    let detail = '';
+
+    if (action === 'normal') {
+
+      detail =
+        'Daño base: ' +
+        (pokemon?.normal_damage ?? 0);
+
+    } else if (action === 'strong') {
+
+      detail =
+        'Daño base: ' +
+        (pokemon?.super_damage ?? 0);
+
+    }
+
+    const cooldown =
+      Number(cooldowns[action] || 0);
+
+    if (cooldown > 0) {
+
+      detail +=
+        (detail ? ' · ' : '') +
+        'Recarga: ' + cooldown;
+
+    }
+
+    if (detail) {
+
+      button.append(
+        cpuNode('small', detail)
+      );
+    }
+
+    box.append(button);
+  }
+
+  return box;
+}
+
+function drawBattle() {
+
+  const box = el('cpuBattle');
+
+  box.replaceChildren();
+
+  if (!session || !session.game_state) {
+
+    box.hidden = true;
+
+    return;
+  }
+
+  const game = session.game_state;
+
+  const player = game.players?.['1'];
+
+  const opponent = game.players?.['2'];
+
+  if (!player || !opponent) {
+
+    box.hidden = true;
+
+    status('Estado de combate incompleto.');
+
+    return;
+  }
+
+  box.hidden = false;
+
+  el('cpuSetup').hidden = true;
+  el('cpuResume').hidden = true;
+  el('cpuResult').hidden = true;
+
+  const header = cpuNode(
+    'div',
+    null,
+    'cpu-battle-header'
+  );
+
+  header.append(
+    cpuNode(
+      'strong',
+      '🎯 ' +
+      (
+        session.difficulty_name ||
+        session.difficulty
+      )
+    ),
+    cpuNode(
+      'small',
+      '🏆 Premio: ' +
+      session.victory_reward +
+      ' monedas'
+    ),
+    cpuNode(
+      'small',
+      'Ronda: ' + (game.round ?? 1)
+    )
+  );
+
+  const playerTurn =
+    Number(session.current_turn) === 1;
+
+  const turn = cpuNode(
+    'div',
+    playerTurn
+      ? '⚔️ ¡Es tu turno!'
+      : '🤖 Turno de la CPU',
+    'cpu-battle-turn'
+  );
+
+  turn.style.color =
+    playerTurn ? '#86efac' : '#facc15';
+
+  const fighters = cpuNode(
+    'div',
+    null,
+    'cpu-battle-grid'
+  );
+
+  fighters.append(
+    cpuDrawFighter(player, 'TU EQUIPO'),
+    cpuDrawFighter(opponent, 'RIVAL CPU')
+  );
+
+  const log = cpuNode(
+    'div',
+    null,
+    'cpu-battle-log'
+  );
+
+  log.append(
+    cpuNode('strong', '📜 Registro de combate'),
+    cpuNode(
+      'p',
+      game.last_action
+        ? (
+            typeof game.last_action === 'string'
+              ? game.last_action
+              : game.last_action.message ||
+                'Última acción registrada.'
+          )
+        : '¡Comienza la batalla contra CPU!'
+    )
+  );
+
+  const abandon = cpuNode(
+    'button',
+    '🏳️ Abandonar combate',
+    'cpu-abandon'
+  );
+
+  abandon.type = 'button';
+
+  // Se conectará a su RPC posteriormente.
+  abandon.disabled = true;
+
+  box.append(
+    header,
+    turn,
+    fighters,
+    cpuDrawActions(player),
+    log,
+    abandon
+  );
+}
+
   function drawResume() {
 
     const box = el('cpuResume');
