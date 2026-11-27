@@ -1156,67 +1156,7 @@ function drawBattle() {
   );
 }
 
-  function drawResume() {
-
-    const box = el('cpuResume');
-
-    box.replaceChildren();
-
-    box.hidden = !session;
-
-    el('cpuSetup').hidden = !!session;
-
-    if (!session) return;
-
-    const title =
-      document.createElement('h3');
-
-    title.textContent =
-      '⚔️ Tienes una partida pendiente';
-
-    const info =
-      document.createElement('p');
-
-    info.textContent =
-      'Dificultad: ' +
-      (
-        session.difficulty_name ||
-        session.difficulty
-      );
-
-    const turn =
-      document.createElement('p');
-
-    turn.textContent =
-      Number(session.current_turn) === 1
-        ? 'Turno del jugador'
-        : 'Turno de la CPU';
-
-    const reward =
-      document.createElement('p');
-
-    reward.textContent =
-      '🏆 Premio por victoria: ' +
-      session.victory_reward +
-      ' monedas';
-
-    const note =
-      document.createElement('small');
-
-    note.textContent =
-      'Partida recuperada correctamente. ' +
-      'El tablero de combate se habilitará ' +
-      'en la siguiente etapa.';
-
-    box.append(
-      title,
-      info,
-      turn,
-      reward,
-      note
-    );
-  }
-
+  
   async function open() {
 
     if (loading || busy) return;
