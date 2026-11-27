@@ -15,6 +15,7 @@ body {
   font-family: Arial, sans-serif;
   padding: 20px;
 }
+
 button {
   width: 100%;
   padding: 16px;
@@ -25,12 +26,31 @@ button {
   font-size: 16px;
   margin: 10px 0;
 }
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 pre {
   background: #202c40;
   padding: 16px;
   border-radius: 12px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+input, select {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0 16px;
+  background: #202c40;
+  color: white;
+  border: 1px solid #64748b;
+  border-radius: 8px;
+  font-size: 18px;
 }
 </style>
 </head>
@@ -39,7 +59,7 @@ pre {
 
 <h2>🧸 Ajedrez de campeones 🦫</h2>
 
-<p>Diagnóstico temporal del servidor</p>
+<p>Diagnóstico temporal del servidor — V4</p>
 
 <button onclick="probarSesion()">
   1. Comprobar sesión
@@ -62,7 +82,17 @@ pre {
 <label>Versión esperada</label>
 <input id="version" type="number" value="0" min="0">
 
-<button onclick="probarMovimiento()">
+<label>Promoción de peón</label>
+
+<select id="promocion">
+  <option value="">Sin promoción</option>
+  <option value="q">♛ Reina</option>
+  <option value="r">♜ Torre</option>
+  <option value="b">♝ Alfil</option>
+  <option value="n">♞ Caballo</option>
+</select>
+
+<button id="botonMovimiento" onclick="probarMovimiento()">
   3. Ejecutar movimiento real
 </button>
 
@@ -70,29 +100,23 @@ pre {
   4. Consultar estado de partida
 </button>
 
-<style>
-input {
-  display: block;
-  box-sizing: border-box;
-  width: 100%;
-  padding: 12px;
-  margin: 8px 0 16px;
-  background: #202c40;
-  color: white;
-  border: 1px solid #64748b;
-  border-radius: 8px;
-  font-size: 18px;
-}
-</style>
-
 <pre id="resultado">Esperando prueba...</pre>
 
 <script>
 
+const SUPABASE_URL =
+  "https://bwupxxeeaewdstjzmwob.supabase.co";
+
+const SUPABASE_KEY =
+  "sb_publishable_oeSBm8VNRI5Upna4skkHKg_JOB5rbDU";
+
 const db = supabase.createClient(
-  "https://bwupxxeeaewdstjzmwob.supabase.co",
-  "sb_publishable_oeSBm8VNRI5Upna4skkHKg_JOB5rbDU"
+  SUPABASE_URL,
+  SUPABASE_KEY
 );
+
+const PARTIDA_PRUEBA =
+  "626d37fe-4534-44b2-8689-119a38e3288b";
 
 function mostrar(data) {
   document.getElementById("resultado").textContent =
@@ -133,7 +157,7 @@ async function probarSesion() {
     mostrar({
       success: true,
       sesion_valida: true,
-player_id: usuario.data.user.id,
+      player_id: usuario.data.user.id,
       jugador: perfil.data?.nickname || "Sin perfil",
       perfil_encontrado: !perfil.error,
       usuario_anonimo: usuario.data.user.is_anonymous
@@ -166,15 +190,14 @@ async function probarMotor() {
     }
 
     const response = await fetch(
-      "https://bwupxxeeaewdstjzmwob.supabase.co/functions/v1/chess-engine",
+      SUPABASE_URL + "/functions/v1/chess-engine",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization":
             "Bearer " + data.session.access_token,
-          "apikey":
-            "sb_publishable_oeSBm8VNRI5Upna4skkHKg_JOB5rbDU"
+          "apikey": SUPABASE_KEY
         },
         body: JSON.stringify({
           action: "move",
@@ -183,62 +206,6 @@ async function probarMotor() {
           expected_version: 0,
           from: "e2",
           to: "e4"
-        })
-      }
-    );
-
-    const resultado = await response.json();
-
-    mostrar({
-      http_status: response.status,
-      respuesta: resultado
-    });
-
-  } catch (error) {
-
-    mostrar({
-      success: false,
-      error: error.message
-    });
-
-  }
-
-}
-const PARTIDA_PRUEBA =
-  "626d37fe-4534-44b2-8689-119a38e3288b";
-
-async function probarMovimiento() {
-
-  try {
-
-    const { data, error } =
-      await db.auth.getSession();
-
-    if (error || !data.session) {
-      throw new Error("No existe sesión activa");
-    }
-
-    const response = await fetch(
-      "https://bwupxxeeaewdstjzmwob.supabase.co/functions/v1/chess-engine",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization":
-            "Bearer " + data.session.access_token,
-          "apikey":
-            "sb_publishable_oeSBm8VNRI5Upna4skkHKg_JOB5rbDU"
-        },
-        body: JSON.stringify({
-          action: "move",
-          match_id: PARTIDA_PRUEBA,
-          expected_version: Number(
-            document.getElementById("version").value
-          ),
-          from: document.getElementById("origen")
-            .value.trim().toLowerCase(),
-          to: document.getElementById("destino")
-            .value.trim().toLowerCase()
         })
       }
     );
@@ -254,6 +221,104 @@ async function probarMovimiento() {
       success: false,
       error: error.message
     });
+
+  }
+
+}
+
+async function probarMovimiento() {
+
+  const boton =
+    document.getElementById("botonMovimiento");
+
+  if (boton.disabled) return;
+
+  boton.disabled = true;
+  boton.textContent = "Procesando movimiento...";
+
+  try {
+
+    const { data, error } =
+      await db.auth.getSession();
+
+    if (error || !data.session) {
+      throw new Error("No existe sesión activa");
+    }
+
+    const origen = document
+      .getElementById("origen")
+      .value.trim().toLowerCase();
+
+    const destino = document
+      .getElementById("destino")
+      .value.trim().toLowerCase();
+
+    const versionTexto = document
+      .getElementById("version").value;
+
+    const version = Number(versionTexto);
+
+    const promocion = document
+      .getElementById("promocion").value;
+
+    if (
+      !/^[a-h][1-8]$/.test(origen) ||
+      !/^[a-h][1-8]$/.test(destino)
+    ) {
+      throw new Error("Casillas no válidas");
+    }
+
+    if (
+      versionTexto.trim() === "" ||
+      !Number.isSafeInteger(version) ||
+      version < 0
+    ) {
+      throw new Error("Versión no válida");
+    }
+
+    const solicitud = {
+      action: "move",
+      match_id: PARTIDA_PRUEBA,
+      expected_version: version,
+      from: origen,
+      to: destino
+    };
+
+    if (promocion !== "") {
+      solicitud.promotion = promocion;
+    }
+
+    const response = await fetch(
+      SUPABASE_URL + "/functions/v1/chess-engine",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization":
+            "Bearer " + data.session.access_token,
+          "apikey": SUPABASE_KEY
+        },
+        body: JSON.stringify(solicitud)
+      }
+    );
+
+    mostrar({
+      http_status: response.status,
+      solicitud: solicitud,
+      respuesta: await response.json()
+    });
+
+  } catch (error) {
+
+    mostrar({
+      success: false,
+      error: error.message
+    });
+
+  } finally {
+
+    boton.disabled = false;
+    boton.textContent = "3. Ejecutar movimiento real";
 
   }
 
