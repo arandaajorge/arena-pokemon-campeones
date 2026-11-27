@@ -714,16 +714,109 @@
     }
   }
 
-  el('cpuStart').onclick = () => {
+  
+async function startCpuMatch() {
 
-    if (!validateTeam()) return;
+  if (!validateTeam()) return;
+
+  busy = true;
+
+  el('cpuStart').disabled = true;
+
+  drawDifficulties();
+  drawTeam();
+
+  status('⚔️ Creando partida contra CPU…');
+
+  try {
+
+    const result = check(
+      await db.rpc(
+        'start_pokemon_cpu_match',
+        {
+          p_difficulty: difficulty,
+          p_pokemon_1: selected[0],
+          p_pokemon_2: selected[1],
+          p_pokemon_3: selected[2]
+        }
+      )
+    );
+
+    if (!result?.success) {
+
+      throw Error(
+        result?.message ||
+        result?.error ||
+        'No se pudo iniciar la partida CPU'
+      );
+    }
+
+    session = {
+
+      match_id: result.match_id,
+
+      game_type: 'pokemon',
+
+      difficulty: result.difficulty,
+
+      difficulty_name:
+        difficulties.find(
+          d => d.id === result.difficulty
+        )?.name || result.difficulty,
+
+      status: 'playing',
+
+      current_turn: result.current_turn,
+
+      version: result.version,
+
+      game_state: result.game_state,
+
+      victory_reward: result.victory_reward,
+
+      reward_granted: 0
+
+    };
+
+    drawResume();
 
     status(
-      '🟢 Equipo y dificultad validados. ' +
-      'El inicio del combate se habilitará ' +
-      'en la siguiente etapa.'
+      result.recovered
+        ? '🟢 Partida existente recuperada.'
+        : '🟢 Partida CPU creada correctamente.'
     );
-  };
+
+    console.log(
+      'Partida CPU:',
+      session
+    );
+
+  } catch (e) {
+
+    status(
+      e.message ||
+      'Error al iniciar el combate CPU'
+    );
+
+    console.error(
+      'Error al iniciar CPU:',
+      e
+    );
+
+  } finally {
+
+    busy = false;
+
+    drawDifficulties();
+
+    drawTeam();
+
+    validateTeam();
+  }
+}
+
+el('cpuStart').onclick = startCpuMatch;
+
 
   document.addEventListener(
     'arena:section-change',
