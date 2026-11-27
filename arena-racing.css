@@ -1,0 +1,342 @@
+
+/* Turbo Racing V5 */
+
+#racing {
+  box-sizing:border-box;
+  overflow:hidden;
+}
+
+#racing [hidden] {
+  display:none!important;
+}
+
+#raceCanvas {
+  width:100%!important;
+  max-width:620px!important;
+  height:auto!important;
+  aspect-ratio:480/540;
+  display:block;
+  margin:8px auto!important;
+  border-radius:14px!important;
+  background:#101426;
+  border:2px solid #45516b;
+  touch-action:none;
+}
+
+.tr-menu {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin:12px 0;
+}
+
+.tr-menu button {
+  min-width:0;
+  font-size:14px;
+  color:white;
+  background:#30395a;
+  border:1px solid #64748b;
+}
+
+.tr-menu button.selected {
+  background:#433878;
+  border-color:#facc15;
+}
+
+.tr-configuration,
+.tr-garage {
+  padding:12px;
+  border-radius:14px;
+  background:#1c2540;
+  margin:10px 0;
+}
+
+.tr-configuration select {
+  width:100%;
+  margin:8px 0;
+  font-size:14px;
+}
+
+#raceStats {
+  background:#242d46;
+  padding:10px;
+  border-radius:10px;
+  font-size:13px;
+}
+
+.tr-hud {
+  display:grid;
+  grid-template-columns:
+    repeat(3,minmax(0,1fr));
+  gap:5px;
+  margin:8px 0;
+}
+
+.tr-stat {
+  min-width:0;
+  padding:8px 3px;
+  text-align:center;
+  border-radius:10px;
+  background:#242d46;
+}
+
+.tr-stat small {
+  display:block;
+  color:#aebbd1;
+  font-size:9px;
+  font-weight:700;
+  margin-bottom:4px;
+}
+
+.tr-stat strong {
+  display:block;
+  font-size:clamp(13px,4vw,19px);
+  color:white;
+  white-space:nowrap;
+}
+
+.tr-scenario {
+  color:#cbd5e1;
+  font-size:12px;
+  text-align:center;
+  margin:6px 0;
+}
+
+.tr-armor {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-size:11px;
+  margin:5px 0;
+}
+
+.tr-armor .hp {
+  flex:1;
+  height:8px;
+  background:#172033;
+}
+
+.tr-armor #armorBar {
+  background:#38bdf8;
+}
+
+.tr-armor #armorText {
+  margin:0;
+  font-size:11px;
+}
+
+#raceTop,
+#raceHud {
+  display:none!important;
+}
+
+#racing .race-driving {
+  display:grid;
+  grid-template-columns:
+    repeat(3,minmax(0,1fr));
+  gap:7px;
+  margin:8px 0;
+}
+
+#racing .race-driving button {
+  width:100%;
+  min-width:0;
+  min-height:68px;
+  border-radius:13px;
+  padding:8px 2px;
+  background:#334155;
+  color:white;
+  font-size:27px;
+  border:1px solid #64748b;
+  touch-action:manipulation;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+#racing .race-driving button small {
+  color:white;
+  font-size:12px;
+}
+
+#racing .race-driving button:nth-child(2) {
+  background:linear-gradient(
+    135deg,#f59e0b,#c2410c
+  );
+  border-color:#facc15;
+}
+
+#racing .race-driving button.tr-nitro-active {
+  background:linear-gradient(
+    135deg,#06b6d4,#2563eb
+  );
+  box-shadow:0 0 12px #38bdf8;
+}
+
+#racing .race-driving button:active {
+  transform:scale(.96);
+}
+
+#racing .race-top-actions {
+  margin:8px 0;
+}
+
+#raceFinish {
+  width:100%;
+  min-height:38px;
+  background:#762b43!important;
+  color:white;
+  border-radius:10px;
+}
+
+#racing .race-actions button {
+  min-height:48px;
+  font-size:16px;
+  color:#052e16;
+}
+
+#raceMsg {
+  color:#facc15;
+  font-size:13px;
+  text-align:center;
+  overflow-wrap:anywhere;
+}
+
+#garageItems {
+  display:grid;
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+
+#garageItems button {
+  min-width:0;
+  padding:12px 4px;
+  font-size:13px;
+  color:white;
+  background:#433878;
+  border:1px solid #8c72d7;
+}
+
+.tr-customizations {
+  display:grid;
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-top:14px;
+}
+
+.tr-customizations label {
+  background:#29334e;
+  border-radius:10px;
+  padding:10px;
+  font-size:13px;
+}
+
+.tr-customizations input[type="color"] {
+  display:block;
+  width:100%;
+  height:35px;
+  margin-top:6px;
+}
+
+.tr-customizations input[type="checkbox"] {
+  width:18px;
+  height:18px;
+  vertical-align:middle;
+  accent-color:#22c55e;
+}
+
+#racing.tr-running {
+  background:#10172b;
+}
+
+#racing.tr-running .tr-menu,
+#racing.tr-running .tr-configuration,
+#racing.tr-running .tr-garage,
+#racing.tr-running #raceStats,
+#racing.tr-running .race-actions,
+#racing.tr-running .tr-keyboard {
+  display:none!important;
+}
+
+@media(max-width:600px) {
+
+  main:has(#racing:not(.hidden)) {
+    width:100%!important;
+    max-width:100%!important;
+    padding-left:4px!important;
+    padding-right:4px!important;
+    box-sizing:border-box;
+  }
+
+  #racing {
+    width:100%!important;
+    max-width:100%!important;
+    padding:6px!important;
+    margin-left:0!important;
+    margin-right:0!important;
+  }
+
+  #racing h2 {
+    font-size:20px;
+    margin:6px 0;
+    text-align:center;
+  }
+
+  #raceCanvas {
+    max-width:100%!important;
+    border-radius:10px!important;
+  }
+
+  #racing.tr-running #raceCanvas {
+    width:auto!important;
+    height:min(52dvh,112vw)!important;
+    max-width:100%!important;
+    object-fit:contain;
+  }
+
+  #racing.tr-running .race-driving button {
+    min-height:62px;
+  }
+
+  .tr-keyboard {
+    display:none;
+  }
+
+}
+
+@media(orientation:landscape)
+  and (max-height:600px) {
+
+  #racing.tr-running .tr-play-area {
+    display:grid;
+    grid-template-columns:
+      minmax(0,1fr) 180px;
+    align-items:center;
+    gap:8px;
+  }
+
+  #racing.tr-running #raceCanvas {
+    width:auto!important;
+    height:58dvh!important;
+    max-width:100%!important;
+    object-fit:contain;
+  }
+
+  #racing.tr-running .race-driving {
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+  }
+
+  #racing.tr-running .race-driving
+    button:nth-child(2) {
+    grid-column:1/-1;
+    grid-row:2;
+  }
+
+  #racing.tr-running .race-driving button {
+    min-height:45px;
+    font-size:20px;
+  }
+
+}
