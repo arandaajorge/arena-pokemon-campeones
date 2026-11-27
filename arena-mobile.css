@@ -1,0 +1,75 @@
+
+/* LIAMCITO GAMESTORE
+   Optimización móvil V1.0 */
+
+@media screen and (max-width: 600px) {
+
+  body:has(#arenaChessPanel:not([hidden]))
+  main:has(#online:not(.hidden)) {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    box-sizing: border-box;
+  }
+
+  #online:has(#arenaChessPanel:not([hidden])),
+  #onlineRoom:has(#arenaChessPanel:not([hidden])),
+  #arenaChessPanel,
+  #chessCpu,
+  #ccGame,
+  #acGame {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-sizing: border-box;
+  }
+
+  main:has(#chessCpu:not(.hidden)) {
+    width: 100%;
+    max-width: 100%;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    box-sizing: border-box;
+  }
+
+  #acBoard,
+  #ccBoard {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 8px auto !important;
+    border-width: 2px !important;
+    box-sizing: border-box;
+    grid-template-columns:
+      repeat(8, minmax(0, 1fr)) !important;
+  }
+
+  #acBoard [data-square],
+  #ccBoard [data-square] {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    aspect-ratio: 1 / 1;
+    padding: 0 !important;
+    touch-action: manipulation;
+  }
+
+  #arenaChessPanel h2,
+  #chessCpu h2 {
+    font-size: clamp(17px, 5vw, 24px);
+    text-align: center;
+  }
+
+  #ccAnimal,
+  .ccAnimal {
+    font-size: clamp(18px, 6vw, 34px);
+  }
+
+  .ccPiece {
+    font-size: clamp(16px, 5vw, 28px);
+  }
+
+}
