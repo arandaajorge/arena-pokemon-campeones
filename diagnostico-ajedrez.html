@@ -97,6 +97,7 @@ async function probarSesion() {
     mostrar({
       success: true,
       sesion_valida: true,
+player_id: usuario.data.user.id,
       jugador: perfil.data?.nickname || "Sin perfil",
       perfil_encontrado: !perfil.error,
       usuario_anonimo: usuario.data.user.is_anonymous
