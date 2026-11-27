@@ -147,6 +147,168 @@
 
   document.head.append(css);
 
+const battleCss = document.createElement('style');
+
+battleCss.textContent = `
+  #cpuBattle {
+    margin-top:16px;
+  }
+
+  .cpu-battle-header {
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:12px;
+  }
+
+  .cpu-battle-turn {
+    background:#39286c;
+    border:1px solid #8c72d7;
+    border-radius:12px;
+    padding:12px;
+    text-align:center;
+    font-weight:bold;
+    margin:12px 0;
+  }
+
+  .cpu-battle-grid {
+    display:grid;
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+
+  .cpu-fighter {
+    min-width:0;
+    background:#34296a;
+    border:1px solid #8c72d7;
+    border-radius:16px;
+    padding:10px;
+    text-align:center;
+    overflow:hidden;
+  }
+
+  .cpu-fighter h3 {
+    margin:6px 0;
+    overflow-wrap:anywhere;
+    font-size:17px;
+  }
+
+  .cpu-fighter img {
+    width:100%;
+    max-width:180px;
+    aspect-ratio:1;
+    object-fit:contain;
+    filter:drop-shadow(0 8px 8px #0005);
+  }
+
+  .cpu-fighter p {
+    font-size:12px;
+    margin:7px 0;
+  }
+
+  .cpu-fighter-label {
+    color:#ddd6fe;
+    font-size:12px;
+    font-weight:bold;
+  }
+
+  .cpu-bar {
+    height:12px;
+    background:#17132e;
+    border-radius:20px;
+    overflow:hidden;
+    margin-top:8px;
+  }
+
+  .cpu-bar-fill {
+    height:100%;
+    border-radius:20px;
+    transition:width .35s ease;
+  }
+
+  .cpu-reserves {
+    display:grid;
+    grid-template-columns:
+      repeat(3,minmax(0,1fr));
+    gap:4px;
+    margin-top:12px;
+  }
+
+  .cpu-reserve {
+    min-width:0;
+    background:#211a53;
+    border:1px solid #6554a0;
+    border-radius:9px;
+    padding:4px;
+    font-size:9px;
+    overflow-wrap:anywhere;
+  }
+
+  .cpu-reserve.active {
+    border:2px solid #facc15;
+  }
+
+  .cpu-reserve.defeated {
+    opacity:.4;
+    filter:grayscale(1);
+  }
+
+  .cpu-reserve img {
+    width:100%;
+    max-width:55px;
+    aspect-ratio:1;
+    object-fit:contain;
+  }
+
+  .cpu-reserve span {
+    display:block;
+  }
+
+  .cpu-battle-actions {
+    display:grid;
+    grid-template-columns:
+      repeat(2,minmax(0,1fr));
+    gap:8px;
+    margin:15px 0;
+  }
+
+  .cpu-battle-actions button {
+    min-width:0;
+    color:white;
+    font-size:13px;
+    padding:12px 5px;
+    border-radius:12px;
+  }
+
+  .cpu-battle-actions small {
+    display:block;
+    color:white;
+    font-size:10px;
+    margin-top:5px;
+  }
+
+  .cpu-battle-log {
+    background:#17132e;
+    border-radius:12px;
+    padding:12px;
+    color:#ffde86;
+    font-size:13px;
+    overflow-wrap:anywhere;
+  }
+
+  .cpu-abandon {
+    width:100%;
+    background:#9f294b;
+    color:white;
+    margin-top:15px;
+  }
+`;
+
+document.head.append(battleCss);
+
   async function connect() {
 
     if (!window.supabase) {
