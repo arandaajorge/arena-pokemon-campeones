@@ -2104,7 +2104,26 @@ el('cpuStart').onclick = startCpuMatch;
 
 
   document.addEventListener(
-    'arena:section-change',
+  'arena:section-change',
+  event => {
+
+    if (event.detail?.section === 'cpu') {
+
+      if (busy && session) {
+
+        drawBattle();
+
+      } else {
+
+        open();
+      }
+
+    } else {
+
+      cancelCpuTurn();
+    }
+  }
+);
     event => {
 
       if (
