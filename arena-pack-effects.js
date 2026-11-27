@@ -108,8 +108,79 @@ currentStage = stage;
       }
     });
 
+    const acceptButton = el('cloudPackClose');
+
+if (acceptButton) {
+  acceptButton.hidden = true;
+  acceptButton.style.display = 'none';
+}
+
+let opened = false;
+
+stage.style.cursor = 'pointer';
+stage.setAttribute('role','button');
+stage.setAttribute('tabindex','0');
+stage.setAttribute(
+  'aria-label',
+  'Tocar para abrir el regalo'
+);
+
+function openGift() {
+  if (opened) return;
+
+  opened = true;
+
+  hint.remove();
+
+  stage.classList.add('burst');
+
+  window.LiamcitoEffects?.particles(
+    stage,
+    '#facc15',
+    35
+  );
+
+  later(() => {
+    stage.remove();
+    currentStage = null;
+
+    dialog.classList.remove('lg-pack-opening');
+
+    cards.forEach((card,index) => {
+      card.classList.add('lg-pack-reveal');
+      card.style.animationDelay =
+        (index*350)+'ms';
+    });
+
+    if (acceptButton) {
+      acceptButton.hidden = false;
+      acceptButton.style.display = '';
+    }
+
+    const totalDuration =
+      650+(cards.length-1)*350;
+
     later(() => {
-      stage.classList.add('burst');
+      cards.forEach(card => {
+        card.classList.remove('lg-pack-reveal');
+        card.style.animationDelay = '';
+      });
+    },totalDuration+100);
+
+  },500);
+}
+
+stage.addEventListener('click',openGift);
+
+stage.addEventListener('keydown',event => {
+  if (
+    event.key === 'Enter' ||
+    event.key === ' '
+  ) {
+    event.preventDefault();
+    openGift();
+  }
+});
 
       window.LiamcitoEffects?.particles(
         stage,
