@@ -1,22 +1,1090 @@
-(()=>{
-'use strict';
-const el=id=>document.getElementById(id);
-const db=window.supabase.createClient('https://bwupxxeeaewdstjzmwob.supabase.co','sb_publishable_oeSBm8VNRI5Upna4skkHKg_JOB5rbDU');
-const panel=document.createElement('div');panel.className='panel';panel.hidden=true;el('onlineMembers').after(panel);
-const style=document.createElement('style');style.textContent=`.ab-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.ab-fighter{background:#34296a;border-radius:14px;padding:8px;text-align:center;min-width:0;overflow-wrap:anywhere}.ab-fighter img{width:100%;max-height:160px;object-fit:contain}.ab-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:12px 0}.ab-actions button{font-size:13px;padding:10px 4px}.ab-hit{animation:ab-hit .4s}@keyframes ab-hit{50%{transform:translateX(5px);filter:brightness(1.8)}}`;document.head.append(style);
-let uid,session,reading=false,busy=false,signature='',message='',healUntil=0;const check=r=>{if(r.error)throw r.error;return r.data};
-function node(tag,t,parent){const n=document.createElement(tag);if(t!=null)n.textContent=t;if(parent)parent.append(n);return n;}
-const labels={normal:'Ataque normal',strong:'Ataque fuerte',elemental:'Ataque elemental',ultimate:'Ataque definitivo',shield:'Escudo',boost:'Potenciador',heal:'Curación',switch:'Cambiar Pokémon',status_skip:'Turno perdido'};
-const effects={normal:'Normal',burn:'Quemadura',freeze:'Congelado',paralysis:'Parálisis',poison:'Veneno',sleep:'Dormido',confusion:'Confusión'};
-function bar(parent,value,max,color){const b=node('div',null,parent);b.className='hp';const fill=node('div',null,b);fill.style.width=Math.max(0,Math.min(100,100*value/max))+'%';fill.style.background=color;}
-function fighter(parent,p){const box=node('div',null,parent);box.className='ab-fighter';const m=p.team[p.active];node('strong',p.nickname,box);if(m.image_url){const img=node('img',null,box);img.src=m.image_url;img.alt=m.name;img.onerror=()=>img.replaceWith(document.createTextNode(m.emoji||'✨'));}else node('p',m.emoji||'✨',box);node('h3',m.name,box);bar(box,m.hp,m.max_hp,'#52df7c');node('p',`${m.hp}/${m.max_hp} PV`,box);bar(box,p.energy,100,'#38bdf8');node('small',`Energía ${p.energy}/100`,box);node('p',`${effects[m.status]||m.status}${m.status_turns?' · '+m.status_turns+' turnos':''}`,box);node('small',`${p.shield?'🛡️ Escudo ':''}${p.boost?'⚡ Potenciador':''}`,box);node('p',`Equipo: ${p.team.filter(x=>x.hp>0).length}/3`,box);return box;}
-function render(){if(!session)return;const s=session.game_state;if(!s?.players)return;panel.replaceChildren();node('h3','🏟️ Arena Pokémon online',panel);const me=s.players[String(session.player_number)],enemy=s.players[String(3-session.player_number)];if(!me||!enemy)return;const done=session.match_status==='finished';const mine=Number(session.current_turn)===Number(session.player_number);node('p',done?(session.winner_id===uid?'🏆 ¡Victoria!':'Combate terminado'):mine?'🟢 Tu turno':'⏳ Turno del rival',panel);const grid=node('div',null,panel);grid.className='ab-grid';fighter(grid,me);fighter(grid,enemy);const m=me.team[me.active];const controls=node('div',null,panel);controls.className='ab-actions';function action(a,label,disabled=false,target=null){const b=node('button',label,controls);b.type='button';b.disabled=done||!mine||busy||disabled;b.onclick=()=>move(a,target);return b;}
-for(const a of ['normal','strong','elemental','ultimate','shield','boost']){const cd=Number(m.cooldowns?.[a]||0);action(a,labels[a]+(cd?' · '+cd+' turnos':''),cd>0||(a==='ultimate'&&me.energy<100));}
-healUntil=Math.max(Date.parse(me.heal_available_at)||0,healUntil);const hb=action('heal','💚 Curación',m.hp>=m.max_hp||healUntil>Date.now());hb.id='abHeal';hb.dataset.allowed=String(!done&&mine&&!busy&&m.hp<m.max_hp);for(let i=0;i<me.team.length;i++)if(i!==me.active)action('switch','🔁 '+me.team[i].name,me.team[i].hp<=0,i);
-const ev=s.last_action;if(ev){node('p',`${ev.pokemon||''} · ${labels[ev.action]||ev.action}${ev.damage?' · Daño '+ev.damage:''}${ev.healing?' · Curación '+ev.healing:''}${ev.critical?' · ¡Crítico!':''}${ev.missed?' · Falló':''}${ev.status_applied?' · '+(effects[ev.status_applied]||ev.status_applied):''}`,panel);}
-if(done&&session.winner_id===uid)node('p','🪙 Recompensa de victoria: 200 monedas. Consulta tu inventario online.',panel);node('p',message,panel).id='abMessage';tick();}
-function tick(){const b=el('abHeal');if(!b)return;const sec=Math.max(0,Math.ceil((healUntil-Date.now())/1000));b.textContent=sec?'💚 Curación · '+sec+' s':'💚 Curación';b.disabled=b.dataset.allowed!=='true'||sec>0||busy;}
-async function refresh(){if(reading||busy)return;if(el('online').classList.contains('hidden')||el('onlineRoom').hidden){panel.hidden=true;signature='';return;}reading=true;try{const {session:auth}=check(await db.auth.getSession());if(!auth)return;const code=el('onlineRoomCode').textContent.match(/\d{6}/)?.[0];if(!code)return;const r=check(await db.rpc('recover_game_session'));const next=r.sessions?.find(x=>x.code===code&&x.game_type==='pokemon'&&['playing','finished'].includes(x.match_status));if(!next){panel.hidden=true;signature='';return;}if(el('onlineRoom').hidden||!el('onlineRoomCode').textContent.includes(code))return;if(uid!==auth.user.id||session?.match_id!==next.match_id){healUntil=0;message='';}uid=auth.user.id;session=next;const wallet=check(await db.from('player_wallets').select('heal_available_at').eq('player_id',uid).maybeSingle());healUntil=Math.max(Date.parse(wallet?.heal_available_at)||0,Date.parse(next.game_state.players[String(next.player_number)].heal_available_at)||0);const key=JSON.stringify([uid,next.match_id,next.version,next.match_status,healUntil]);panel.hidden=false;if(key!==signature){signature=key;render();}}catch(e){if(!panel.hidden){message=e.message||'Error de sincronización';if(el('abMessage'))el('abMessage').textContent=message;}}finally{reading=false;}}
-async function move(action,target){if(busy||reading||!session||session.match_status!=='playing'||Number(session.current_turn)!==Number(session.player_number))return;busy=true;message='Enviando movimiento…';render();try{const r=check(await db.rpc('pokemon_battle_action',{p_match_id:session.match_id,p_action:action,p_expected_version:session.version,p_target:target}));if(r.success===false)throw Error(r.error||'Movimiento rechazado');session={...session,game_state:r.game_state,current_turn:r.current_turn,version:r.version,match_status:r.finished?'finished':'playing',winner_id:r.winner_id};message='Movimiento confirmado';if(navigator.vibrate)navigator.vibrate(60);}catch(e){message=e.message||'No se pudo realizar el movimiento';}finally{busy=false;signature='';render();await refresh();}}
-setInterval(refresh,2000);setInterval(tick,250);refresh();
+
+(() => {
+  'use strict';
+
+  const el = id => document.getElementById(id);
+
+  if (el('arenaBattlePanel')) return;
+
+  const db = window.supabase.createClient(
+    'https://bwupxxeeaewdstjzmwob.supabase.co',
+    'sb_publishable_oeSBm8VNRI5Upna4skkHKg_JOB5rbDU'
+  );
+
+  const panel = document.createElement('div');
+
+  panel.id = 'arenaBattlePanel';
+  panel.className = 'panel';
+  panel.hidden = true;
+
+  el('onlineMembers').after(panel);
+
+  const style = document.createElement('style');
+
+  style.textContent = `
+    #arenaBattlePanel {
+      width:100%;
+      box-sizing:border-box;
+      background:#10172b;
+      border-radius:16px;
+      padding:12px;
+    }
+
+    #arenaBattlePanel[hidden] {
+      display:none!important;
+    }
+
+    .ab-title {
+      text-align:center;
+      margin:4px 0 10px;
+      font-size:20px;
+    }
+
+    .ab-turn {
+      text-align:center;
+      padding:10px;
+      border-radius:10px;
+      font-weight:800;
+      margin:8px 0;
+      background:#29354b;
+    }
+
+    .ab-myturn {
+      background:#174b36;
+      color:#86efac;
+    }
+
+    .ab-grid {
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    .ab-fighter {
+      display:grid;
+      grid-template-columns:minmax(0,1fr) 42%;
+      align-items:center;
+      gap:8px;
+      min-width:0;
+      padding:10px;
+      border-radius:16px;
+      background:linear-gradient(
+        135deg,#25334b,#182235
+      );
+      border:1px solid #43516b;
+      overflow:hidden;
+    }
+
+    .ab-fighter.ab-own {
+      grid-template-columns:42% minmax(0,1fr);
+      background:linear-gradient(
+        135deg,#35265c,#202b48
+      );
+      border-color:#6956a3;
+    }
+
+    .ab-info {
+      min-width:0;
+      overflow-wrap:anywhere;
+    }
+
+    .ab-info h3 {
+      font-size:18px;
+      margin:4px 0;
+    }
+
+    .ab-info p {
+      font-size:12px;
+      margin:3px 0;
+    }
+
+    .ab-nickname {
+      font-size:12px;
+      color:#b9c5da;
+    }
+
+    .ab-art {
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-width:0;
+      min-height:110px;
+    }
+
+    .ab-art img {
+      width:100%;
+      max-width:220px;
+      height:145px;
+      object-fit:contain;
+      filter:drop-shadow(
+        0 8px 8px #0006
+      );
+    }
+
+    .ab-emoji {
+      font-size:64px;
+    }
+
+    .ab-bar {
+      height:10px;
+      width:100%;
+      border-radius:20px;
+      background:#0b1220;
+      overflow:hidden;
+      margin-top:5px;
+    }
+
+    .ab-bar.ab-energy {
+      height:6px;
+    }
+
+    .ab-fill {
+      height:100%;
+      border-radius:20px;
+      transition:width .3s;
+    }
+
+    .ab-team {
+      display:flex;
+      gap:5px;
+      margin-top:6px;
+    }
+
+    .ab-ball {
+      width:14px;
+      height:14px;
+      border-radius:50%;
+      background:linear-gradient(
+        #ef4444 44%,
+        #111 44%,
+        #111 56%,
+        #fff 56%
+      );
+      border:1px solid #111;
+    }
+
+    .ab-ball.ab-ko {
+      opacity:.3;
+      filter:grayscale(1);
+    }
+
+    .ab-ball.ab-active {
+      outline:2px solid #facc15;
+      outline-offset:1px;
+    }
+
+    .ab-event {
+      min-height:44px;
+      padding:8px;
+      text-align:center;
+      border-radius:10px;
+      background:#111a30;
+      color:#facc15;
+      font-size:13px;
+      overflow-wrap:anywhere;
+    }
+
+    .ab-actions {
+      display:grid;
+      grid-template-columns:
+        repeat(2,minmax(0,1fr));
+      gap:7px;
+      margin:10px 0;
+    }
+
+    .ab-actions button {
+      width:100%;
+      min-width:0;
+      min-height:49px;
+      font-size:13px;
+      font-weight:800;
+      color:white;
+      padding:8px 4px;
+      border-radius:10px;
+      border:1px solid #ffffff22;
+      box-sizing:border-box;
+      touch-action:manipulation;
+      overflow-wrap:anywhere;
+    }
+
+    .ab-actions button:disabled {
+      opacity:.38;
+      filter:saturate(.5);
+    }
+
+    .ab-normal {
+      background:#334155!important;
+    }
+
+    .ab-strong {
+      background:#854d0e!important;
+    }
+
+    .ab-elemental {
+      background:#1e40af!important;
+    }
+
+    .ab-ultimate {
+      background:#991b1b!important;
+    }
+
+    .ab-shield {
+      background:#155e75!important;
+    }
+
+    .ab-boost {
+      background:#6b21a8!important;
+    }
+
+    .ab-heal {
+      background:#166534!important;
+    }
+
+    .ab-switch {
+      background:#433878!important;
+    }
+
+    .ab-switch-title {
+      grid-column:1/-1;
+      font-size:13px;
+      margin:4px 0;
+    }
+
+    .ab-result {
+      padding:18px 10px;
+      text-align:center;
+      background:#254438;
+      border:1px solid #4ade80;
+      border-radius:14px;
+      color:#86efac;
+      font-weight:800;
+      margin:10px 0;
+    }
+
+    #abMessage {
+      font-size:12px;
+      text-align:center;
+      color:#cbd5e1;
+      overflow-wrap:anywhere;
+    }
+
+    .ab-hit {
+      animation:ab-hit .5s ease;
+    }
+
+    .ab-attack {
+      animation:ab-attack .5s ease;
+    }
+
+    .ab-healing {
+      animation:ab-healing .7s ease;
+    }
+
+    .ab-defense {
+      animation:ab-defense .7s ease;
+    }
+
+    @keyframes ab-hit {
+      20%,60% {
+        transform:translateX(-5px);
+        filter:brightness(1.8);
+      }
+      40%,80% {
+        transform:translateX(5px);
+      }
+    }
+
+    @keyframes ab-attack {
+      50% {
+        transform:scale(1.06);
+        filter:brightness(1.3);
+      }
+    }
+
+    @keyframes ab-healing {
+      50% {
+        box-shadow:inset 0 0 35px #22c55e;
+      }
+    }
+
+    @keyframes ab-defense {
+      50% {
+        box-shadow:inset 0 0 35px #38bdf8;
+      }
+    }
+
+    @media(max-width:600px) {
+
+      main:has(
+        #online:not(.hidden)
+        #onlineRoom:not([hidden])
+        #arenaBattlePanel:not([hidden])
+      ) {
+        width:100%!important;
+        max-width:100%!important;
+        padding-left:4px!important;
+        padding-right:4px!important;
+        box-sizing:border-box;
+      }
+
+      #online:has(
+        #onlineRoom:not([hidden])
+        #arenaBattlePanel:not([hidden])
+      ),
+      #onlineRoom:has(
+        #arenaBattlePanel:not([hidden])
+      ) {
+        width:100%!important;
+        max-width:100%!important;
+        padding-left:4px!important;
+        padding-right:4px!important;
+        box-sizing:border-box;
+      }
+
+      #arenaBattlePanel {
+        padding:6px!important;
+        margin-left:0!important;
+        margin-right:0!important;
+      }
+
+      .ab-fighter {
+        padding:8px;
+      }
+
+      .ab-art img {
+        height:125px;
+      }
+
+    }
+
+    @media(prefers-reduced-motion:reduce) {
+
+      .ab-hit,
+      .ab-attack,
+      .ab-healing,
+      .ab-defense {
+        animation:none!important;
+      }
+
+    }
+  `;
+
+  document.head.append(style);
+
+  let uid;
+  let session;
+  let reading = false;
+  let busy = false;
+  let signature = '';
+  let message = '';
+  let healUntil = 0;
+  let animatedEvent = null;
+
+  const check = r => {
+
+    if (r.error) throw r.error;
+
+    return r.data;
+
+  };
+
+  function node(tag,text,parent) {
+
+    const n = document.createElement(tag);
+
+    if (text != null) n.textContent = text;
+
+    if (parent) parent.append(n);
+
+    return n;
+
+  }
+
+  const labels = {
+    normal:'⚔️ Ataque normal',
+    strong:'💥 Ataque fuerte',
+    elemental:'⚡ Elemental',
+    ultimate:'🔥 Definitivo',
+    shield:'🛡️ Escudo',
+    boost:'🚀 Potenciador',
+    heal:'💚 Curación',
+    switch:'🔄 Cambiar Pokémon',
+    status_skip:'Turno perdido'
+  };
+
+  const effects = {
+    normal:'Normal',
+    burn:'🔥 Quemadura',
+    freeze:'❄️ Congelado',
+    paralysis:'⚡ Parálisis',
+    poison:'☠️ Veneno',
+    sleep:'💤 Dormido',
+    confusion:'💫 Confusión'
+  };
+
+  function bar(parent,value,max,color,energy=false) {
+
+    const b = node('div',null,parent);
+
+    b.className = 'ab-bar'
+      + (energy ? ' ab-energy' : '');
+
+    const fill = node('div',null,b);
+
+    fill.className = 'ab-fill';
+
+    fill.style.width = Math.max(
+      0,
+      Math.min(100,100*value/Math.max(1,max))
+    ) + '%';
+
+    fill.style.background = color;
+
+  }
+
+  function fighter(parent,p,own) {
+
+    const box = node('div',null,parent);
+
+    box.className = 'ab-fighter'
+      + (own ? ' ab-own' : '');
+
+    const m = p.team[p.active];
+
+    const info = node('div');
+
+    info.className = 'ab-info';
+
+    const nickname = node(
+      'div',
+      (own ? 'Tú · ' : 'Rival · ') + p.nickname,
+      info
+    );
+
+    nickname.className = 'ab-nickname';
+
+    node('h3',m.name,info);
+
+    const ratio = m.hp / Math.max(1,m.max_hp);
+
+    const hpColor =
+      ratio > .5 ? '#4ade80' :
+      ratio > .2 ? '#facc15' :
+      '#ef4444';
+
+    bar(info,m.hp,m.max_hp,hpColor);
+
+    node('p',`${m.hp}/${m.max_hp} PV`,info);
+
+    bar(info,p.energy,100,'#38bdf8',true);
+
+    node('p',`Energía ${p.energy}/100`,info);
+
+    node(
+      'p',
+      (effects[m.status] || m.status || 'Normal')
+      + (m.status_turns
+        ? ' · '+m.status_turns+' turnos'
+        : ''),
+      info
+    );
+
+    if (p.shield || p.boost) {
+
+      node(
+        'p',
+        `${p.shield?'🛡️ Escudo ':''}`
+        + `${p.boost?'⚡ Potenciador':''}`,
+        info
+      );
+
+    }
+
+    const team = node('div',null,info);
+
+    team.className = 'ab-team';
+
+    p.team.forEach((pokemon,i) => {
+
+      const ball = node('span',null,team);
+
+      ball.className = 'ab-ball'
+        + (pokemon.hp<=0?' ab-ko':'')
+        + (i===p.active?' ab-active':'');
+
+      ball.title = pokemon.name;
+
+    });
+
+    const art = node('div');
+
+    art.className = 'ab-art';
+
+    function fallback() {
+
+      art.replaceChildren();
+
+      const emoji = node(
+        'span',
+        m.emoji || '✨',
+        art
+      );
+
+      emoji.className = 'ab-emoji';
+
+    }
+
+    if (m.image_url) {
+
+      const img = node('img',null,art);
+
+      img.src = m.image_url;
+      img.alt = m.name;
+      img.onerror = fallback;
+
+    } else {
+
+      fallback();
+
+    }
+
+    if (own) {
+
+      box.append(art,info);
+
+    } else {
+
+      box.append(info,art);
+
+    }
+
+    return box;
+
+  }
+
+  function render() {
+
+    if (!session) return;
+
+    const s = session.game_state;
+
+    if (!s?.players) return;
+
+    const me = s.players[
+      String(session.player_number)
+    ];
+
+    const enemy = s.players[
+      String(3-session.player_number)
+    ];
+
+    if (!me || !enemy) return;
+
+    panel.replaceChildren();
+
+    const title = node(
+      'h3',
+      '🏟️ Arena Pokémon online',
+      panel
+    );
+
+    title.className = 'ab-title';
+
+    const done =
+      session.match_status === 'finished';
+
+    const mine =
+      Number(session.current_turn)
+      === Number(session.player_number);
+
+    const turn = node(
+      'div',
+      done
+        ? session.winner_id===uid
+          ? '🏆 ¡Victoria!'
+          : 'Combate terminado'
+        : mine
+          ? '⚔️ Tu turno'
+          : '⏳ Turno del rival',
+      panel
+    );
+
+    turn.className = 'ab-turn'
+      + (mine&&!done?' ab-myturn':'');
+
+    const grid = node('div',null,panel);
+
+    grid.className = 'ab-grid';
+
+    const enemyBox = fighter(grid,enemy,false);
+
+    const ev = s.last_action;
+
+    const eventBox = node(
+      'div',
+      ev
+        ? `${ev.pokemon||''} · `
+          + `${labels[ev.action]||ev.action}`
+          + (ev.damage?' · Daño '+ev.damage:'')
+          + (ev.healing?' · Curación '+ev.healing:'')
+          + (ev.critical?' · ¡Crítico!':'')
+          + (ev.missed?' · Falló':'')
+          + (ev.status_applied
+            ? ' · '+(
+              effects[ev.status_applied]
+              ||ev.status_applied
+            )
+            :'')
+        : '¡Comienza el combate!',
+      grid
+    );
+
+    eventBox.className = 'ab-event';
+
+    const myBox = fighter(grid,me,true);
+
+    if (ev) {
+
+      const eventKey =
+        session.match_id + ':'
+        + session.version;
+
+      if (animatedEvent !== eventKey) {
+
+        animatedEvent = eventKey;
+
+        const ownAction =
+          Number(ev.player)
+          === Number(session.player_number);
+
+        const attacker = ownAction
+          ? myBox : enemyBox;
+
+        const target = ownAction
+          ? enemyBox : myBox;
+
+        if (ev.damage > 0) {
+
+          attacker.classList.add('ab-attack');
+
+          target.classList.add('ab-hit');
+
+        }
+
+        if (ev.healing > 0) {
+
+          attacker.classList.add('ab-healing');
+
+        }
+
+        if (ev.action === 'shield') {
+
+          attacker.classList.add('ab-defense');
+
+        }
+
+        if (ev.action === 'boost') {
+
+          attacker.classList.add('ab-attack');
+
+        }
+
+      }
+
+    }
+
+    const m = me.team[me.active];
+
+    if (!done) {
+
+      const controls = node('div',null,panel);
+
+      controls.className = 'ab-actions';
+
+      function action(
+        a,label,disabled=false,target=null
+      ) {
+
+        const b = node('button',label,controls);
+
+        b.type = 'button';
+
+        b.className = 'ab-' + a;
+
+        b.disabled =
+          !mine || busy || disabled;
+
+        b.onclick = () => move(a,target);
+
+        return b;
+
+      }
+
+      for (const a of [
+        'normal',
+        'strong',
+        'elemental',
+        'ultimate',
+        'shield',
+        'boost'
+      ]) {
+
+        const cd = Number(
+          m.cooldowns?.[a] || 0
+        );
+
+        action(
+          a,
+          labels[a]
+            + (cd?' · '+cd+' turnos':''),
+          cd>0
+            ||(a==='ultimate'&&me.energy<100)
+        );
+
+      }
+
+      healUntil = Math.max(
+        Date.parse(me.heal_available_at)||0,
+        healUntil
+      );
+
+      const hb = action(
+        'heal',
+        '💚 Curación',
+        m.hp>=m.max_hp
+          ||healUntil>Date.now()
+      );
+
+      hb.id = 'abHeal';
+
+      hb.dataset.allowed = String(
+        mine&&!busy&&m.hp<m.max_hp
+      );
+
+      const switchTitle = node(
+        'strong',
+        '🔄 Cambiar Pokémon',
+        controls
+      );
+
+      switchTitle.className = 'ab-switch-title';
+
+      for (let i=0;i<me.team.length;i++) {
+
+        if (i===me.active) continue;
+
+        const pokemon = me.team[i];
+
+        action(
+          'switch',
+          pokemon.name
+            + ' · '+pokemon.hp+' PV',
+          pokemon.hp<=0,
+          i
+        );
+
+      }
+
+    }
+
+    if (done) {
+
+      const result = node(
+        'div',
+        session.winner_id===uid
+          ? '🏆 ¡VICTORIA! · Recompensa: 200 monedas. Consulta tu inventario online.'
+          : 'Combate terminado',
+        panel
+      );
+
+      result.className = 'ab-result';
+
+    }
+
+    node('p',message,panel).id = 'abMessage';
+
+    tick();
+
+  }
+
+  function tick() {
+
+    const b = el('abHeal');
+
+    if (!b) return;
+
+    const sec = Math.max(
+      0,
+      Math.ceil((healUntil-Date.now())/1000)
+    );
+
+    b.textContent = sec
+      ? '💚 Curación · '+sec+' s'
+      : '💚 Curación';
+
+    b.disabled =
+      b.dataset.allowed!=='true'
+      ||sec>0
+      ||busy;
+
+  }
+
+  function roomVisible() {
+
+    return !el('online').classList.contains('hidden')
+      && !el('onlineRoom').hidden;
+
+  }
+
+  async function refresh() {
+
+    if (reading || busy) return;
+
+    if (!roomVisible()) {
+
+      panel.hidden = true;
+      signature = '';
+
+      return;
+
+    }
+
+    reading = true;
+
+    try {
+
+      const {session:auth} = check(
+        await db.auth.getSession()
+      );
+
+      if (!auth) {
+
+        panel.hidden = true;
+
+        return;
+
+      }
+
+      const code = el('onlineRoomCode')
+        .textContent.match(/\d{6}/)?.[0];
+
+      if (!code) {
+
+        panel.hidden = true;
+
+        return;
+
+      }
+
+      const r = check(
+        await db.rpc('recover_game_session')
+      );
+
+      const next = r.sessions?.find(x =>
+        x.code===code
+        &&x.game_type==='pokemon'
+        &&['playing','finished']
+          .includes(x.match_status)
+      );
+
+      if (!next) {
+
+        panel.hidden = true;
+        signature = '';
+
+        return;
+
+      }
+
+      if (
+        !roomVisible()
+        ||!el('onlineRoomCode')
+          .textContent.includes(code)
+      ) return;
+
+      if (
+        uid!==auth.user.id
+        ||session?.match_id!==next.match_id
+      ) {
+
+        healUntil = 0;
+        message = '';
+        animatedEvent = null;
+
+      }
+
+      uid = auth.user.id;
+
+      session = next;
+
+      const wallet = check(
+        await db.from('player_wallets')
+          .select('heal_available_at')
+          .eq('player_id',uid)
+          .maybeSingle()
+      );
+
+      healUntil = Math.max(
+        Date.parse(wallet?.heal_available_at)||0,
+        Date.parse(
+          next.game_state.players[
+            String(next.player_number)
+          ].heal_available_at
+        )||0
+      );
+
+      if (
+        !roomVisible()
+        ||!el('onlineRoomCode')
+          .textContent.includes(code)
+      ) return;
+
+      const key = JSON.stringify([
+        uid,
+        next.match_id,
+        next.version,
+        next.match_status,
+        healUntil
+      ]);
+
+      panel.hidden = false;
+
+      if (key!==signature) {
+
+        signature = key;
+
+        render();
+
+      }
+
+    } catch (e) {
+
+      if (!panel.hidden) {
+
+        message =
+          e.message || 'Error de sincronización';
+
+        if (el('abMessage')) {
+
+          el('abMessage').textContent = message;
+
+        }
+
+      }
+
+    } finally {
+
+      reading = false;
+
+    }
+
+  }
+
+  async function move(action,target) {
+
+    if (
+      busy
+      ||!session
+      ||!roomVisible()
+      ||session.match_status!=='playing'
+      ||Number(session.current_turn)
+        !==Number(session.player_number)
+    ) return;
+
+    const current = session;
+
+    const code = el('onlineRoomCode')
+      .textContent.match(/\d{6}/)?.[0];
+
+    if (code!==current.code) return;
+
+    busy = true;
+
+    message = 'Enviando movimiento…';
+
+    render();
+
+    try {
+
+      const r = check(
+        await db.rpc('pokemon_battle_action',{
+          p_match_id:current.match_id,
+          p_action:action,
+          p_expected_version:current.version,
+          p_target:target
+        })
+      );
+
+      if (r.success===false) {
+
+        throw Error(
+          r.error || 'Movimiento rechazado'
+        );
+
+      }
+
+      session = {
+        ...current,
+        game_state:r.game_state,
+        current_turn:r.current_turn,
+        version:r.version,
+        match_status:r.finished
+          ?'finished':'playing',
+        winner_id:r.winner_id
+      };
+
+      message = 'Movimiento confirmado';
+
+      if (navigator.vibrate) {
+
+        navigator.vibrate(60);
+
+      }
+
+    } catch (e) {
+
+      message = e.message
+        || 'No se pudo realizar el movimiento';
+
+    } finally {
+
+      busy = false;
+
+      signature = '';
+
+      if (
+        roomVisible()
+        &&el('onlineRoomCode')
+          .textContent.includes(code)
+      ) {
+
+        render();
+
+      } else {
+
+        panel.hidden = true;
+
+      }
+
+      await refresh();
+
+    }
+
+  }
+
+  setInterval(refresh,2000);
+
+  setInterval(tick,250);
+
+  document.addEventListener(
+    'arena:section-change',
+    refresh
+  );
+
+  refresh();
+
+  console.info(
+    'Arena Pokémon Battle V2.0 cargado'
+  );
+
 })();
