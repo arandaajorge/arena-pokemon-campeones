@@ -681,11 +681,30 @@ async function purchase(pack){
         'Respuesta pendiente de verificar'
       );
 
-    await refresh();
+    
+await refresh();
 
-    reveal(result.cards);
+reveal(result.cards);
 
-    clearPending();
+// Animación opcional, sin afectar la compra.
+try {
+  document.dispatchEvent(
+    new CustomEvent('liamcito:pack-opened',{
+      detail:{
+        packName:pack.name,
+        cardsCount:result.cards.length
+      }
+    })
+  );
+} catch (animationError) {
+  console.warn(
+    'No se pudo iniciar la animación:',
+    animationError
+  );
+}
+
+clearPending();
+
 
     status('🟢 Compra guardada correctamente');
 
