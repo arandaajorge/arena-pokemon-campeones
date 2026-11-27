@@ -298,7 +298,36 @@
     store.prepend(button);
   }
 
-  createTestButton();
+    // Esperar a que la tienda online esté disponible.
+  function initTestButton() {
+    createTestButton();
+
+    if (el('lgTestPackAnimation')) return;
+
+    let attempts = 0;
+
+    const interval = setInterval(() => {
+      createTestButton();
+      attempts++;
+
+      if (
+        el('lgTestPackAnimation') ||
+        attempts >= 30
+      ) {
+        clearInterval(interval);
+      }
+    }, 500);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener(
+      'DOMContentLoaded',
+      initTestButton,
+      { once: true }
+    );
+  } else {
+    initTestButton();
+  }
 
 })();
 
