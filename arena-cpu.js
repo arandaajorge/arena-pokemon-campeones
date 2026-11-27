@@ -1492,6 +1492,85 @@ function cpuDrawActions(player) {
           break;
       }
     }
+    
+function drawCpuSwitchOptions(player, box) {
+
+  if (
+    !cpuActionAvailability(player, 'switch').allowed ||
+    cpuSyncRequired
+  ) {
+
+    return;
+  }
+
+  box.replaceChildren();
+
+  const title = cpuNode(
+    'strong',
+    '🔄 Selecciona tu próximo Pokémon'
+  );
+
+  title.style.gridColumn = '1 / -1';
+
+  box.append(title);
+
+  const reserves =
+    cpuAvailableReserves(player);
+
+  reserves.forEach(({ pokemon, index }) => {
+
+    const button = cpuNode('button');
+
+    button.type = 'button';
+
+    button.style.background = '#34296a';
+
+    const image =
+      cpuPokemonImage(pokemon);
+
+    image.style.width = '85px';
+    image.style.maxWidth = '100%';
+
+    button.append(
+      image,
+      cpuNode('div', pokemon.name),
+      cpuNode(
+        'small',
+        pokemon.hp + ' / ' +
+        pokemon.max_hp + ' PV'
+      )
+    );
+
+    button.onclick = () => {
+
+      executeCpuAction(
+        'switch',
+        index
+      );
+    };
+
+    box.append(button);
+  });
+
+  const cancel = cpuNode(
+    'button',
+    'Cancelar'
+  );
+
+  cancel.type = 'button';
+
+  cancel.style.gridColumn = '1 / -1';
+
+  cancel.style.background = '#475569';
+
+  cancel.onclick = () => {
+
+    drawBattle();
+  };
+
+  box.append(cancel);
+}
+
 
     if (detail) {
 
