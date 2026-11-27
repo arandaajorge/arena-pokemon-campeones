@@ -4,18 +4,18 @@
 
   if (window.LiamcitoPackEffects) return;
 
+  const el = id => document.getElementById(id);
+
   let timers = [];
   let currentStage = null;
-
-  const el = id => document.getElementById(id);
 
   const reducedMotion = () =>
     window.matchMedia?.(
       '(prefers-reduced-motion: reduce)'
     ).matches;
 
-  function later(fn,ms) {
-    const timer = setTimeout(fn,ms);
+  function later(fn, ms) {
+    const timer = setTimeout(fn, ms);
     timers.push(timer);
   }
 
@@ -27,30 +27,36 @@
     currentStage = null;
 
     const dialog = el('cloudPackDialog');
-    const cards = el('cloudPackRewards');
+    const rewards = el('cloudPackRewards');
+    const summary = el('cloudPackSummary');
+    const accept = el('cloudPackClose');
 
     dialog?.classList.remove('lg-pack-opening');
 
-    if (cards) {
-      cards.style.display = '';
+    if (rewards) {
+      rewards.style.display = '';
 
-      cards.querySelectorAll('.cloud-card')
+      rewards.querySelectorAll('.cloud-card')
         .forEach(card => {
           card.classList.remove('lg-pack-reveal');
           card.style.animationDelay = '';
         });
     }
 
-    const summary = el('cloudPackSummary');
-
     if (summary) summary.style.display = '';
+
+    if (accept) {
+      accept.hidden = false;
+      accept.style.display = '';
+    }
   }
 
-  function play(detail={}) {
+  function play(detail = {}) {
     cleanup();
 
     const dialog = el('cloudPackDialog');
     const rewards = el('cloudPackRewards');
+    const accept = el('cloudPackClose');
 
     if (!dialog || !rewards || !dialog.open) {
       return;
@@ -66,8 +72,19 @@
 
     dialog.classList.add('lg-pack-opening');
 
+    if (accept) {
+      accept.hidden = true;
+      accept.style.display = 'none';
+    }
+
     const stage = document.createElement('div');
     stage.className = 'lg-pack-stage';
+    stage.setAttribute('role', 'button');
+    stage.setAttribute('tabindex', '0');
+    stage.setAttribute(
+      'aria-label',
+      'Toca el regalo para abrirlo'
+    );
 
     const envelope = document.createElement('div');
     envelope.className = 'lg-pack-envelope';
@@ -75,143 +92,101 @@
 
     const title = document.createElement('strong');
     title.textContent =
-      '¡Abriendo '+
-      String(detail.packName || 'tu sobre')+
-      '!';
+      '¡' + String(
+        detail.packName || 'Tu sobre sorpresa'
+      ) + '!';
 
     const hint = document.createElement('div');
+    hint.className = 'lg-pack-hint';
 
-hint.className = 'lg-pack-hint';
-hint.innerHTML = `
-  <span class="lg-pack-hand">👆</span>
-  <strong>¡TOCA EL REGALO PARA ABRIRLO!</strong>
-`;
+    const hand = document.createElement('span');
+    hand.className = 'lg-pack-hand';
+    hand.textContent = '👆';
 
-stage.append(envelope,title,hint);
+    const instruction = document.createElement('strong');
+    instruction.textContent =
+      '¡TOCA EL REGALO PARA ABRIRLO!';
 
-rewards.before(stage);
-currentStage = stage;
+    hint.append(hand, instruction);
+    stage.append(envelope, title, hint);
+
+    rewards.before(stage);
+    currentStage = stage;
 
     cards.forEach(card => {
-      const rarityColor =
-        card.style.getPropertyValue('--rarity')
-          .trim().toLowerCase();
+      const color = card.style
+        .getPropertyValue('--rarity')
+        .trim()
+        .toLowerCase();
 
-      if (rarityColor==='#38bdf8') {
-        card.classList.add('lg-pack-rare');
-      } else if (rarityColor==='#c084fc') {
-        card.classList.add('lg-pack-epic');
-      } else if (rarityColor==='#facc15') {
-        card.classList.add('lg-pack-legendary');
-      } else if (rarityColor==='#fb7185') {
-        card.classList.add('lg-pack-secret');
+      const rarities = {
+        '#38bdf8': 'lg-pack-rare',
+        '#c084fc': 'lg-pack-epic',
+        '#facc15': 'lg-pack-legendary',
+        '#fb7185': 'lg-pack-secret'
+      };
+
+      if (rarities[color]) {
+        card.classList.add(rarities[color]);
       }
     });
 
-    const acceptButton = el('cloudPackClose');
+    let opened = false;
 
-if (acceptButton) {
-  acceptButton.hidden = true;
-  acceptButton.style.display = 'none';
-}
+    function openGift() {
+      if (opened) return;
+      opened = true;
 
-let opened = false;
-
-stage.style.cursor = 'pointer';
-stage.setAttribute('role','button');
-stage.setAttribute('tabindex','0');
-stage.setAttribute(
-  'aria-label',
-  'Tocar para abrir el regalo'
-);
-
-function openGift() {
-  if (opened) return;
-
-  opened = true;
-
-  hint.remove();
-
-  stage.classList.add('burst');
-
-  window.LiamcitoEffects?.particles(
-    stage,
-    '#facc15',
-    35
-  );
-
-  later(() => {
-    stage.remove();
-    currentStage = null;
-
-    dialog.classList.remove('lg-pack-opening');
-
-    cards.forEach((card,index) => {
-      card.classList.add('lg-pack-reveal');
-      card.style.animationDelay =
-        (index*350)+'ms';
-    });
-
-    if (acceptButton) {
-      acceptButton.hidden = false;
-      acceptButton.style.display = '';
-    }
-
-    const totalDuration =
-      650+(cards.length-1)*350;
-
-    later(() => {
-      cards.forEach(card => {
-        card.classList.remove('lg-pack-reveal');
-        card.style.animationDelay = '';
-      });
-    },totalDuration+100);
-
-  },500);
-}
-
-stage.addEventListener('click',openGift);
-
-stage.addEventListener('keydown',event => {
-  if (
-    event.key === 'Enter' ||
-    event.key === ' '
-  ) {
-    event.preventDefault();
-    openGift();
-  }
-});
+      hint.remove();
+      stage.classList.add('burst');
 
       window.LiamcitoEffects?.particles(
         stage,
         '#facc15',
         35
       );
-    },1100);
-
-    later(() => {
-      stage.remove();
-      currentStage = null;
-
-      dialog.classList.remove('lg-pack-opening');
-
-      cards.forEach((card,index) => {
-        card.classList.add('lg-pack-reveal');
-        card.style.animationDelay =
-          (index*350)+'ms';
-      });
-
-      const totalDuration =
-        650+(cards.length-1)*350;
 
       later(() => {
-        cards.forEach(card => {
-          card.classList.remove('lg-pack-reveal');
-          card.style.animationDelay = '';
-        });
-      },totalDuration+100);
+        stage.remove();
+        currentStage = null;
 
-    },1600);
+        dialog.classList.remove('lg-pack-opening');
+
+        cards.forEach((card, index) => {
+          card.classList.add('lg-pack-reveal');
+          card.style.animationDelay =
+            (index * 350) + 'ms';
+        });
+
+        const duration =
+          650 + (cards.length - 1) * 350;
+
+        later(() => {
+          cards.forEach(card => {
+            card.classList.remove('lg-pack-reveal');
+            card.style.animationDelay = '';
+          });
+
+          if (accept) {
+            accept.hidden = false;
+            accept.style.display = '';
+          }
+        }, duration + 100);
+
+      }, 500);
+    }
+
+    stage.addEventListener('click', openGift);
+
+    stage.addEventListener('keydown', event => {
+      if (
+        event.key === 'Enter' ||
+        event.key === ' '
+      ) {
+        event.preventDefault();
+        openGift();
+      }
+    });
   }
 
   document.addEventListener(
@@ -234,27 +209,19 @@ stage.addEventListener('keydown',event => {
     cleanup
   );
 
-  
   window.LiamcitoPackEffects = {
     play,
     cleanup
   };
 
-  // Prueba visual gratuita: no compra sobres.
+  // Prueba gratuita: no modifica monedas ni cartas.
   function createTestButton() {
-    if (document.getElementById(
-      'lgTestPackAnimation'
-    )) return;
+    if (el('lgTestPackAnimation')) return;
 
-    const store = document.getElementById(
-      'cloudStore'
-    );
-
+    const store = el('cloudStore');
     if (!store) return;
 
-    const button = document.createElement(
-      'button'
-    );
+    const button = document.createElement('button');
 
     button.id = 'lgTestPackAnimation';
     button.type = 'button';
@@ -273,22 +240,15 @@ stage.addEventListener('keydown',event => {
     `;
 
     button.onclick = () => {
-      const dialog = document.getElementById(
-        'cloudPackDialog'
-      );
-
-      const rewards = document.getElementById(
-        'cloudPackRewards'
-      );
-
-      const summary = document.getElementById(
-        'cloudPackSummary'
-      );
+      const dialog = el('cloudPackDialog');
+      const rewards = el('cloudPackRewards');
+      const summary = el('cloudPackSummary');
 
       if (!dialog || !rewards) return;
 
       if (dialog.open) dialog.close();
 
+      cleanup();
       rewards.replaceChildren();
 
       const names = [
@@ -299,34 +259,27 @@ stage.addEventListener('keydown',event => {
         'Eevee'
       ];
 
-      names.forEach((name,index) => {
-        const card = document.createElement(
-          'div'
-        );
+      const icons = [
+        '⚡', '🔥', '💧', '🌱', '✨'
+      ];
 
+      names.forEach((name, index) => {
+        const card = document.createElement('div');
         card.className = 'cloud-card';
+
         card.style.setProperty(
           '--rarity',
-          index===4?'#facc15':'#38bdf8'
+          index === 4 ? '#facc15' : '#38bdf8'
         );
 
-        const icon = document.createElement(
-          'div'
-        );
-
-        icon.textContent = [
-          '⚡','🔥','💧','🌱','✨'
-        ][index];
-
+        const icon = document.createElement('div');
+        icon.textContent = icons[index];
         icon.style.fontSize = '55px';
 
-        const title = document.createElement(
-          'h4'
-        );
-
+        const title = document.createElement('h4');
         title.textContent = name;
 
-        card.append(icon,title);
+        card.append(icon, title);
         rewards.append(card);
       });
 
@@ -338,7 +291,7 @@ stage.addEventListener('keydown',event => {
       dialog.showModal();
 
       play({
-        packName:'Sobre de prueba'
+        packName: 'Sobre de prueba'
       });
     };
 
@@ -348,51 +301,3 @@ stage.addEventListener('keydown',event => {
   createTestButton();
 
 })();
-/* Mano que indica dónde tocar */
-
-.lg-pack-hint {
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  margin:14px auto;
-  color:#facc15;
-  text-align:center;
-  font-size:15px;
-  text-shadow:0 0 12px #facc1588;
-  animation:lg-hint-pulse 1s ease-in-out infinite;
-}
-
-.lg-pack-hand {
-  display:block;
-  font-size:52px;
-  animation:lg-hand-point .8s ease-in-out infinite;
-}
-
-@keyframes lg-hand-point {
-  0%,100% {
-    transform:translateY(-12px);
-  }
-
-  50% {
-    transform:translateY(8px) scale(.9);
-  }
-}
-
-@keyframes lg-hint-pulse {
-  0%,100% {
-    opacity:1;
-  }
-
-  50% {
-    opacity:.65;
-  }
-}
-
-@media (prefers-reduced-motion:reduce) {
-  .lg-pack-hand,
-  .lg-pack-hint {
-    animation:none!important;
-  }
-}
