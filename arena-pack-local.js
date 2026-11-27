@@ -112,25 +112,21 @@
 
   if (typeof originalPack !== 'function') return;
 
-  window.pack = function(index) {
-    const previousCards = Array.isArray(window.state?.cards)
-      ? window.state.cards.length
-      : null;
+    window.pack = function(index) {
+    const previousReward = title.textContent;
 
     originalPack(index);
 
-    // La compra original sigue siendo responsable
-    // de monedas, cartas y probabilidades.
-    // Detectamos la recompensa por el contenido
-    // del cuadro local.
+    // Animar únicamente si la compra generó
+    // una recompensa nueva.
     if (
       dialog.open &&
-      title.textContent.includes('¡Nueva carta!')
+      title.textContent.includes('¡Nueva carta!') &&
+      title.textContent !== previousReward
     ) {
       animateLocalPack();
     }
   };
-
   window.LiamcitoLocalPackEffects = {
     animateLocalPack,
     cleanup
