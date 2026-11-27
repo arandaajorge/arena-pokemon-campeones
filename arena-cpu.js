@@ -1225,11 +1225,24 @@
 
     const ev = game.last_action;
 
-    grid.append(
-      enemyBox,
-      node('div',describe(ev),'cpu-event'),
-      myBox
-    );
+    
+grid.append(
+  enemyBox,
+  node('div',describe(ev),'cpu-event'),
+  myBox
+);
+
+// Reproducir efectos visuales de acciones confirmadas.
+window.LiamcitoCpuEffects?.play({
+  matchId:session.match_id,
+  version:session.version,
+  event:ev,
+  game,
+  enemyBox,
+  myBox,
+  finished:done,
+  result:session.result
+});
 
     if (ev) {
       const key = session.match_id+':'+session.version;
