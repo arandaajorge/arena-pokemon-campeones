@@ -8,100 +8,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-const PARTIDA_PRUEBA =
-  "626d37fe-4534-44b2-8689-119a38e3288b";
-
-async function probarMovimiento() {
-
-  try {
-
-    const { data, error } =
-      await db.auth.getSession();
-
-    if (error || !data.session) {
-      throw new Error("No existe sesión activa");
-    }
-
-    const response = await fetch(
-      "https://bwupxxeeaewdstjzmwob.supabase.co/functions/v1/chess-engine",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization":
-            "Bearer " + data.session.access_token,
-          "apikey":
-            "sb_publishable_oeSBm8VNRI5Upna4skkHKg_JOB5rbDU"
-        },
-        body: JSON.stringify({
-          action: "move",
-          match_id: PARTIDA_PRUEBA,
-          expected_version: Number(
-            document.getElementById("version").value
-          ),
-          from: document.getElementById("origen")
-            .value.trim().toLowerCase(),
-          to: document.getElementById("destino")
-            .value.trim().toLowerCase()
-        })
-      }
-    );
-
-    mostrar({
-      http_status: response.status,
-      respuesta: await response.json()
-    });
-
-  } catch (error) {
-
-    mostrar({
-      success: false,
-      error: error.message
-    });
-
-  }
-
-}
-
-async function consultarPartida() {
-
-  try {
-
-    const { data, error } = await db
-      .from("game_matches")
-      .select(
-        "id,status,version,current_turn,game_state,winner_id"
-      )
-      .eq("id", PARTIDA_PRUEBA)
-      .single();
-
-    if (error) throw error;
-
-    mostrar({
-      success: true,
-      estado: data.status,
-      version: data.version,
-      turno: data.game_state.turn,
-      fen: data.game_state.fen,
-      movimientos: data.game_state.moves,
-      capturas: data.game_state.captured,
-      jaque: data.game_state.check,
-      jaque_mate: data.game_state.checkmate,
-      tablas: data.game_state.draw,
-      ganador: data.winner_id
-    });
-
-  } catch (error) {
-
-    mostrar({
-      success: false,
-      error: error.message
-    });
-
-  }
-
-}
-
 <style>
 body {
   background: #101827;
@@ -300,6 +206,98 @@ async function probarMotor() {
 }
 
 </script>
+const PARTIDA_PRUEBA =
+  "626d37fe-4534-44b2-8689-119a38e3288b";
 
+async function probarMovimiento() {
+
+  try {
+
+    const { data, error } =
+      await db.auth.getSession();
+
+    if (error || !data.session) {
+      throw new Error("No existe sesión activa");
+    }
+
+    const response = await fetch(
+      "https://bwupxxeeaewdstjzmwob.supabase.co/functions/v1/chess-engine",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization":
+            "Bearer " + data.session.access_token,
+          "apikey":
+            "sb_publishable_oeSBm8VNRI5Upna4skkHKg_JOB5rbDU"
+        },
+        body: JSON.stringify({
+          action: "move",
+          match_id: PARTIDA_PRUEBA,
+          expected_version: Number(
+            document.getElementById("version").value
+          ),
+          from: document.getElementById("origen")
+            .value.trim().toLowerCase(),
+          to: document.getElementById("destino")
+            .value.trim().toLowerCase()
+        })
+      }
+    );
+
+    mostrar({
+      http_status: response.status,
+      respuesta: await response.json()
+    });
+
+  } catch (error) {
+
+    mostrar({
+      success: false,
+      error: error.message
+    });
+
+  }
+
+}
+
+async function consultarPartida() {
+
+  try {
+
+    const { data, error } = await db
+      .from("game_matches")
+      .select(
+        "id,status,version,current_turn,game_state,winner_id"
+      )
+      .eq("id", PARTIDA_PRUEBA)
+      .single();
+
+    if (error) throw error;
+
+    mostrar({
+      success: true,
+      estado: data.status,
+      version: data.version,
+      turno: data.game_state.turn,
+      fen: data.game_state.fen,
+      movimientos: data.game_state.moves,
+      capturas: data.game_state.captured,
+      jaque: data.game_state.check,
+      jaque_mate: data.game_state.checkmate,
+      tablas: data.game_state.draw,
+      ganador: data.winner_id
+    });
+
+  } catch (error) {
+
+    mostrar({
+      success: false,
+      error: error.message
+    });
+
+  }
+
+}
 </body>
 </html>
