@@ -60,7 +60,44 @@
 function showReward(title,name,detail){const d=document.getElementById("rewardDialog");document.getElementById("rewardTitle").textContent=title;document.getElementById("rewardName").textContent=name;document.getElementById("rewardDetail").textContent=detail;if(!d.open)d.showModal()}
 
 const [p1,p2,turn,log,shopmsg,packmsg,gamemsg]=["p1","p2","turn","log","shopmsg","packmsg","gamemsg"].map(id=>document.getElementById(id));
-const mons=[{n:'Pikachu',e:'⚡',hp:310},{n:'Squirtle',e:'🐢',hp:310},{n:'Bulbasaur',e:'🌱',hp:330},{n:'Charmander',e:'🔥',hp:320},{n:'Charizard secreto',e:'🐉',hp:9999},{n:'Eevee',e:'✨',hp:380},{n:'Lucario',e:'🥊',hp:550},{n:'Mewtwo',e:'🔮',hp:950},{n:'Rayquaza',e:'🐲',hp:1400}];let state;try{state=JSON.parse(localStorage.getItem('arena_v3'))||{coins:300,heals:1,cards:['Pikachu','Squirtle']}}catch(e){state={coins:300,heals:1,cards:['Pikachu','Squirtle']}};state.level=Math.max(1,Number(state.level)||1);state.boosts=state.boosts||0;let players=[],active=0,finished=false;function save(){localStorage.setItem('arena_v3',JSON.stringify(state));document.getElementById('coins').textContent=state.coins}function show(id){if(id!=="racing" && running)stopRace();document.querySelectorAll('main>section').forEach(x=>x.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');if(id==='setup')loadChoices();if(id==='packs')drawPacks();if(id==='index')document.getElementById('collection').innerHTML=state.cards.map(n=>'<div class="card">✨ '+n+'</div>').join('')||'Sin cartas'}function start(){players=[mons[+p1.value],mons[+p2.value]].map(m=>({...m,current:m.hp}));active=0;finished=false;show('battle');render('¡Comienza la batalla!')}function render(msg){players.forEach((p,i)=>{document.getElementById('s'+(i+1)).textContent=p.e;document.getElementById('n'+(i+1)).textContent=p.n;document.getElementById('hp'+(i+1)).textContent=p.current+' / '+p.hp+' PV';document.getElementById('bar'+(i+1)).style.width=100*p.current/p.hp+'%'});turn.textContent=finished?'Batalla terminada':'Turno del jugador '+(active+1);log.textContent=msg}function attack(power){if(finished)return;let a=active,b=1-a;power=Math.round(power*Math.sqrt(players[a].hp/310));if(state.boosts>0&&power>=95){power+=50;state.boosts--;save()}players[b].current=Math.max(0,players[b].current-power);if(!players[b].current){finished=true;state.coins+=150;save();render('🏆 ¡Ganó el jugador '+(a+1)+'! +150 monedas');showReward('🏆 ¡Victoria!','Jugador '+(a+1)+' ganó la batalla','🪙 +150 monedas');return}active=b;render(players[a].n+' hizo '+power+' de daño.')}function heal(){if(finished)return;if(state.heals<1){render('No quedan curaciones. Compra otra en la tienda.');return}let p=players[active];p.current=Math.min(p.hp,p.current+100);state.heals--;save();active=1-active;render('Curación aplicada: +100 PV (máximo de vida).')}function buyHeal(){if(state.coins<80){shopmsg.textContent='No tienes suficientes monedas';return}state.coins-=80;state.heals++;save();shopmsg.textContent='¡Curación comprada! Tienes '+state.heals}const packs=[['Común',100,'#a3a3a3','Carta común'],['Raro',300,'#38bdf8','Rara; 5% legendaria'],['Épico',600,'#c084fc','Épica garantizada'],['Legendario',1000,'#facc15','Legendaria garantizada'],['Ultra Secreto',2500,'#fb7185','Ultra secreta garantizada; 1% Charizard']];
+function show(id) {
+
+  const section = document.getElementById(id);
+
+  if (!section) return;
+
+  if (id !== "racing" && running) {
+    stopRace();
+  }
+
+  document.querySelectorAll('main>section')
+    .forEach(x => x.classList.add('hidden'));
+
+  section.classList.remove('hidden');
+
+  if (id === 'setup') {
+    loadChoices();
+  }
+
+  if (id === 'packs') {
+    drawPacks();
+  }
+
+  if (id === 'index') {
+    document.getElementById('collection').innerHTML =
+      state.cards.map(n =>
+        '<div class="card">✨ ' + n + '</div>'
+      ).join('') || 'Sin cartas';
+  }
+
+  document.dispatchEvent(
+    new CustomEvent('arena:section-change', {
+      detail: { section: id }
+    })
+  );
+
+}
+function start(){players=[mons[+p1.value],mons[+p2.value]].map(m=>({...m,current:m.hp}));active=0;finished=false;show('battle');render('¡Comienza la batalla!')}function render(msg){players.forEach((p,i)=>{document.getElementById('s'+(i+1)).textContent=p.e;document.getElementById('n'+(i+1)).textContent=p.n;document.getElementById('hp'+(i+1)).textContent=p.current+' / '+p.hp+' PV';document.getElementById('bar'+(i+1)).style.width=100*p.current/p.hp+'%'});turn.textContent=finished?'Batalla terminada':'Turno del jugador '+(active+1);log.textContent=msg}function attack(power){if(finished)return;let a=active,b=1-a;power=Math.round(power*Math.sqrt(players[a].hp/310));if(state.boosts>0&&power>=95){power+=50;state.boosts--;save()}players[b].current=Math.max(0,players[b].current-power);if(!players[b].current){finished=true;state.coins+=150;save();render('🏆 ¡Ganó el jugador '+(a+1)+'! +150 monedas');showReward('🏆 ¡Victoria!','Jugador '+(a+1)+' ganó la batalla','🪙 +150 monedas');return}active=b;render(players[a].n+' hizo '+power+' de daño.')}function heal(){if(finished)return;if(state.heals<1){render('No quedan curaciones. Compra otra en la tienda.');return}let p=players[active];p.current=Math.min(p.hp,p.current+100);state.heals--;save();active=1-active;render('Curación aplicada: +100 PV (máximo de vida).')}function buyHeal(){if(state.coins<80){shopmsg.textContent='No tienes suficientes monedas';return}state.coins-=80;state.heals++;save();shopmsg.textContent='¡Curación comprada! Tienes '+state.heals}const packs=[['Común',100,'#a3a3a3','Carta común'],['Raro',300,'#38bdf8','Rara; 5% legendaria'],['Épico',600,'#c084fc','Épica garantizada'],['Legendario',1000,'#facc15','Legendaria garantizada'],['Ultra Secreto',2500,'#fb7185','Ultra secreta garantizada; 1% Charizard']];
 function drawPacks(){document.getElementById('packlist').innerHTML=packs.map((p,i)=>`<div class="packtile" style="--rare:${p[2]}"><strong>🎁 ${p[0]}</strong><br>${p[3]}<br><button onclick="pack(${i})">Abrir · ${p[1]} monedas</button></div>`).join('')}
 function pack(i){if(state.coins<packs[i][1]){packmsg.textContent='No tienes suficientes monedas';showReward('Monedas insuficientes','Necesitas '+packs[i][1]+' monedas','Juega minijuegos para conseguir más.');return}state.coins-=packs[i][1];let r=Math.random(),j=i===0?Math.floor(Math.random()*4):i===1?(r<.05?7:5):i===2?6:i===3?7:r<.01?4:8;let m=mons[j];state.cards.push(m.n);save();packmsg.innerHTML=`<div class="rewardcard"><span>${m.e}</span><h2>${m.n}</h2>${m.hp} PV · ${j===4?'SUPREMA':j===7?'Legendaria':packs[i][0]}</div>`;showReward(m.e+' ¡Nueva carta!',m.n,m.hp+' PV · '+(j===4?'SUPREMA':j===7?'Legendaria':packs[i][0]))}
 function buyBoost(){if(state.coins<120){shopmsg.textContent='No tienes suficientes monedas';return}state.coins-=120;state.boosts++;save();shopmsg.textContent='Potenciadores disponibles: '+state.boosts+' (+50 daño en ataque fuerte)'}
