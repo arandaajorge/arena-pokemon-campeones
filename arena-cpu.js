@@ -1892,7 +1892,8 @@ function drawResume() {
 
     loading = true;
     ready = false;
-
+cancelCpuTurn();
+cpuSyncRequired = false;
     uid = null;
     profile = null;
     session = null;
