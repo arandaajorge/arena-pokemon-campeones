@@ -222,7 +222,7 @@ const dialog=document.createElement('dialog');
 dialog.id='cloudPackDialog';
 
 dialog.innerHTML=`
-<h2>🎉 ¡Sobre abierto!</h2>
+<h2>🎁 ¡Tu sobre sorpresa!</h2>
 
 <p id="cloudPackSummary"></p>
 
