@@ -915,10 +915,19 @@ function cpuDrawFighter(player, label) {
       pokemon.hp + ' / ' +
       pokemon.max_hp + ' PV'
     ),
-    cpuNode(
-      'p',
-      '⚡ Energía: ' + (player.energy ?? 0)
-    )
+    cpuBar(
+  player.energy ?? 0,
+  100,
+  Number(player.energy) >= 100
+    ? '#facc15'
+    : '#38bdf8'
+),
+cpuNode(
+  'p',
+  '⚡ Energía: ' +
+  (player.energy ?? 0) +
+  ' / 100'
+)
   );
 
   const condition =
