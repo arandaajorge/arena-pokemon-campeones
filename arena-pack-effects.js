@@ -174,7 +174,7 @@ cards.forEach((card, index) => {
 });
 
         const duration =
-          650 + (cards.length - 1) * 350;
+  900 * cards.length + 500;
 
         later(() => {
           cards.forEach(card => {
