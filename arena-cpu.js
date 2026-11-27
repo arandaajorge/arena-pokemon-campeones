@@ -1974,21 +1974,26 @@ cpuSyncRequired = false;
 
       console.error('Arena CPU:', e);
 
-    } finally {
+    } 
+finally {
 
-      loading = false;
+  loading = false;
 
-      if (ready) {
+  if (ready) {
 
-        drawDifficulties();
+    drawDifficulties();
+    drawTeam();
 
-        drawTeam();
-      }
+    if (session && visible()) {
 
-      validateTeam();
+      drawBattle();
+
+      scheduleCpuTurn();
     }
   }
 
+  validateTeam();
+}
   
 async function startCpuMatch() {
 
