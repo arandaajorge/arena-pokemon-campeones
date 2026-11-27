@@ -59,8 +59,58 @@
 <section id="shop" class="panel hidden"><h2>🛍️ Tienda</h2><p>Compra artículos con monedas virtuales.</p><button onclick="show('packs')">🎁 Ver los cinco sobres</button><button onclick="buyHeal()">💚 Curación extra · 80</button><button onclick="buyBoost()">⚡ Potenciador de ataque · 120</button><p id="shopmsg"></p></section><section id="packs" class="panel hidden"><h2>🎁 Sobres</h2><div id="packlist"></div><div id="packmsg" aria-live="polite"></div><small>Charizard secreto: 1% exclusivamente en el sobre Ultra Secreto.</small></section><section id="games" class="panel hidden"><button onclick="show('racing')">🏎️ Turbo Racing</button><h2>🎯 Minijuegos</h2><p>Adivina el número del 1 al 3. Gana 20 monedas.</p><button onclick="guess(1)">1</button> <button onclick="guess(2)">2</button> <button onclick="guess(3)">3</button><p id="gamemsg"></p><hr><h3>🧩 Tridentes Acuáticos</h3><p>Toca un tridente cuando tenga libre el camino en la dirección de sus puntas. Saldrá disparado dejando una estela de agua. ¡Despeja el tablero sin pistas y gana monedas!</p><button class="mini-btn" id="newPuzzle" onclick="newArrowGame()">🔄 Nuevo desafío</button><p id="arrow-status" aria-live="polite"></p><p id="puzzleLives"></p><button id="continuePuzzle" class="hidden" onclick="continuePuzzle()">Continuar · 50 🪙</button><div class="arrow-board" id="arrow-board" aria-label="Tablero de tridentes"></div></section><section id="racing" class="panel hidden"><h2>🏎️ Turbo Racing</h2><p id="raceStats"></p><label>Modalidad <select id="raceMode" onchange="selectRace()"><option value="infinite">♾️ Infinito</option><option value="championship">🏆 Campeonato</option></select></label><div id="champControls" class="hidden"><label>Carrera <select id="raceStage" onchange="selectRace()"></select></label><p id="stageInfo"></p><div class="hp"><div id="goalBar" style="background:#facc15;width:0%"></div></div></div><div id="raceTop" style="margin:10px 0;font-weight:bold"></div><div class="hp"><div id="armorBar"></div></div><p id="armorText"></p><div class="race-top-actions"><button id="raceFinish" type="button" disabled onclick="confirmRaceFinish()">⏹ Terminar carrera</button></div><canvas id="raceCanvas" width="480" height="540" style="width:100%;max-width:480px;display:block;margin:auto;border-radius:16px"></canvas><p id="raceHud"></p><div class="race-driving"><button onclick="steer(-1)" aria-label="Izquierda">◀<small>Izquierda</small></button><button onclick="boostRace()" aria-label="Nitro">🔥<small>Nitro</small></button><button onclick="steer(1)" aria-label="Derecha">▶<small>Derecha</small></button></div><div class="race-actions"><button onclick="startRace()">Iniciar carrera</button></div><p id="raceMsg"></p><h3>🔧 Garaje</h3><div id="garageItems" class="controls"></div><label>Pintura <input id="paint" type="color" onchange="customizeRace()"></label> <label><input id="wing" type="checkbox" onchange="customizeRace()"> Alerón</label> <label><input id="neon" type="checkbox" onchange="customizeRace()"> Neón</label> <label>Color del neón <input id="neonColor" type="color" onchange="customizeRace()"></label><p>Teclado: flechas izquierda/derecha y espacio para nitro.</p><button onclick="show('games')">Volver a minijuegos</button></section><section id="index" class="panel hidden"><h2>📖 Tu colección</h2><div id="collection"></div></section><section id="trade" class="panel hidden"><h2>🔁 Intercambio</h2><p>Los intercambios entre dispositivos llegarán en una actualización posterior.</p></section><button style="margin-top:20px" onclick="show('home')">🏠 Volver al menú</button></main><dialog id="rewardDialog"><h2 id="rewardTitle"></h2><h3 id="rewardName"></h3><p id="rewardDetail"></p><button onclick="document.getElementById('rewardDialog').close()">Aceptar</button></dialog><script>
 function showReward(title,name,detail){const d=document.getElementById("rewardDialog");document.getElementById("rewardTitle").textContent=title;document.getElementById("rewardName").textContent=name;document.getElementById("rewardDetail").textContent=detail;if(!d.open)d.showModal()}
 
+
 const [p1,p2,turn,log,shopmsg,packmsg,gamemsg]=["p1","p2","turn","log","shopmsg","packmsg","gamemsg"].map(id=>document.getElementById(id));
+
+const mons = [
+  {n:'Pikachu',e:'⚡',hp:310},
+  {n:'Squirtle',e:'🐢',hp:310},
+  {n:'Bulbasaur',e:'🌱',hp:330},
+  {n:'Charmander',e:'🔥',hp:320},
+  {n:'Charizard secreto',e:'🐉',hp:9999},
+  {n:'Eevee',e:'✨',hp:380},
+  {n:'Lucario',e:'🥊',hp:550},
+  {n:'Mewtwo',e:'🔮',hp:950},
+  {n:'Rayquaza',e:'🐲',hp:1400}
+];
+
+let state;
+
+try {
+  state = JSON.parse(
+    localStorage.getItem('arena_v3')
+  ) || {
+    coins:300,
+    heals:1,
+    cards:['Pikachu','Squirtle']
+  };
+} catch(e) {
+  state = {
+    coins:300,
+    heals:1,
+    cards:['Pikachu','Squirtle']
+  };
+}
+
+state.level = Math.max(1, Number(state.level) || 1);
+state.boosts = state.boosts || 0;
+
+let players = [],
+    active = 0,
+    finished = false;
+
+function save() {
+  localStorage.setItem(
+    'arena_v3',
+    JSON.stringify(state)
+  );
+
+  document.getElementById('coins').textContent =
+    state.coins;
+}
+
 function show(id) {
+
 
   const section = document.getElementById(id);
 
