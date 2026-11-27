@@ -49,6 +49,42 @@ pre {
   2. Comprobar motor autenticado
 </button>
 
+<hr>
+
+<h3>Pruebas de movimientos reales</h3>
+
+<label>Casilla de origen</label>
+<input id="origen" value="e2" maxlength="2">
+
+<label>Casilla de destino</label>
+<input id="destino" value="e4" maxlength="2">
+
+<label>Versión esperada</label>
+<input id="version" type="number" value="0" min="0">
+
+<button onclick="probarMovimiento()">
+  3. Ejecutar movimiento real
+</button>
+
+<button onclick="consultarPartida()">
+  4. Consultar estado de partida
+</button>
+
+<style>
+input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0 16px;
+  background: #202c40;
+  color: white;
+  border: 1px solid #64748b;
+  border-radius: 8px;
+  font-size: 18px;
+}
+</style>
+
 <pre id="resultado">Esperando prueba...</pre>
 
 <script>
