@@ -190,48 +190,40 @@ async function refresh(){if(!room||reading)return;reading=true;const id=room.roo
 async function enter(join){if(busy)return;busy=true;el('onlineCreate').disabled=el('onlineJoin').disabled=true;try{const name=el('onlineName').value.trim(),code=el('onlineCode').value.trim();if(!name)throw Error('Escribe tu nombre');if(join&&!/^\d{6}$/.test(code))throw Error('Introduce seis dígitos');status('Conectando…');const id=await connect();const existing=check(await db.from('players').select('id').eq('id',id).maybeSingle());check(await (existing?db.from('players').update({nickname:name}).eq('id',id):db.from('players').insert({id,nickname:name})));room=check(await db.rpc(join?'join_game_room':'create_game_room',join?{p_code:code}:{p_game_type:el('onlineMode').value}));el('onlineLobby').hidden=true;el('onlineRoom').hidden=false;el('onlineRoomCode').textContent='Código: '+room.code;el('onlineRoomMode').textContent=modes[room.game_type];channel=db.channel('room-'+room.room_id).on('postgres_changes',{event:'*',schema:'public',table:'room_players',filter:'room_id=eq.'+room.room_id},refresh).subscribe(()=>refresh());poll=setInterval(refresh,4000);await refresh();}catch(e){status(e.message||'Error de conexión')}finally{busy=false;el('onlineCreate').disabled=el('onlineJoin').disabled=false}}
 el('onlineCreate').onclick=()=>enter(false);el('onlineJoin').onclick=()=>enter(true);el('onlineLeave').onclick=async()=>{if(busy||!room)return;busy=true;el('onlineLeave').disabled=true;try{check(await db.rpc('leave_game_room',{p_room_id:room.room_id}));room=null;clearInterval(poll);if(channel)await db.removeChannel(channel);channel=null;el('onlineRoom').hidden=true;el('onlineLobby').hidden=false;status('Saliste de la sala.')}catch(e){status(e.message||'No se pudo salir')}finally{busy=false;el('onlineLeave').disabled=false}};
 })();</script>
+
+<!-- Sistema online -->
 <script src="./arena-online.js?v=460"></script>
 <script src="./arena-inventory.js?v=461"></script>
 <script src="./arena-packs.js?v=463"></script>
 
+<!-- Equipos y batallas -->
 <script src="./arena-teams.js?v=1"></script>
-
 <script src="./arena-battle.js?v=3"></script>
 <script src="./arena-cpu.js?v=7"></script>
+
+<!-- Ajedrez -->
 <script src="./arena-chess.js?v=1"></script>
 <script src="./arena-chess-controls.js?v=1"></script>
 <script src="./arena-chess-actions.js?v=1"></script>
 <script src="./arena-chess-results.js?v=1"></script>
+<script src="./arena-chess-cpu.js?v=3"></script>
+
+<!-- Navegación -->
 <script src="./arena-navigation.js?v=2"></script>
 
+<!-- Tienda Liamcito -->
 <link rel="stylesheet" href="./liamcito-store.css?v=1">
-
 <script src="./liamcito-store.js?v=1"></script>
 <script src="./liamcito-layout.js?v=1"></script>
 
-<script src="./arena-chess-cpu.js?v=3"></script>
-
+<!-- Adaptación para celulares -->
 <link rel="stylesheet" href="./arena-mobile.css?v=2">
 
+<!-- Carreras -->
 <link rel="stylesheet" href="./arena-racing.css?v=1">
 <script src="./arena-racing.js?v=1"></script>
 
-<link rel="stylesheet" href="./arena-mobile.css?v=2">
-
-<link rel="stylesheet" href="./arena-racing.css?v=1">
-<script src="./arena-racing.js?v=1"></script>
-
-<link rel="stylesheet" href="./arena-trades.css?v=1">
-<script src="./arena-trades.js?v=1"></script>
-  
-<link rel="stylesheet" href="./arena-effects.css?v=1">
-<script src="./arena-effects.js?v=1"></script>
-
-<script src="./arena-effects-test.js?v=1"></script>
-
-<link rel="stylesheet" href="./arena-effects.css?v=1">
-
-
+<!-- Intercambios -->
 <link rel="stylesheet" href="./arena-trades.css?v=1">
 <script src="./arena-trades.js?v=1"></script>
 
@@ -245,7 +237,9 @@ el('onlineCreate').onclick=()=>enter(false);el('onlineJoin').onclick=()=>enter(t
 <!-- Efectos de apertura de sobres -->
 <link rel="stylesheet" href="./arena-pack-effects.css?v=2">
 <script src="./arena-pack-effects.js?v=6"></script>
+
 <!-- Apertura animada de sobres locales -->
 <script src="./arena-pack-local.js?v=2"></script>
+
 </body>
 </html>
