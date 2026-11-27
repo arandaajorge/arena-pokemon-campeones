@@ -1386,19 +1386,37 @@ function drawBattle() {
   );
 
   log.append(
-    cpuNode('strong', '📜 Registro de combate'),
+  cpuNode(
+    'strong',
+    '📜 Registro de combate'
+  )
+);
+
+const history = Array.isArray(game.history)
+  ? game.history.slice(-6).reverse()
+  : [];
+
+if (history.length) {
+
+  history.forEach(event => {
+
+    log.append(
+      cpuNode(
+        'p',
+        cpuDescribeEvent(event)
+      )
+    );
+  });
+
+} else {
+
+  log.append(
     cpuNode(
       'p',
-      game.last_action
-        ? (
-            typeof game.last_action === 'string'
-              ? game.last_action
-              : game.last_action.message ||
-                'Última acción registrada.'
-          )
-        : '¡Comienza la batalla contra CPU!'
+      cpuDescribeEvent(game.last_action)
     )
   );
+}
 
   const abandon = cpuNode(
     'button',
