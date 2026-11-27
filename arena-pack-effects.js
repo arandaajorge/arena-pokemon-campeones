@@ -155,9 +155,117 @@
     cleanup
   );
 
+  
   window.LiamcitoPackEffects = {
     play,
     cleanup
   };
+
+  // Prueba visual gratuita: no compra sobres.
+  function createTestButton() {
+    if (document.getElementById(
+      'lgTestPackAnimation'
+    )) return;
+
+    const store = document.getElementById(
+      'cloudStore'
+    );
+
+    if (!store) return;
+
+    const button = document.createElement(
+      'button'
+    );
+
+    button.id = 'lgTestPackAnimation';
+    button.type = 'button';
+    button.textContent =
+      '🎁 Probar apertura animada GRATIS';
+
+    button.style.cssText = `
+      width:100%;
+      margin:12px 0;
+      padding:14px;
+      background:#7c3aed;
+      color:white;
+      border:2px solid #facc15;
+      border-radius:14px;
+      font-weight:bold;
+    `;
+
+    button.onclick = () => {
+      const dialog = document.getElementById(
+        'cloudPackDialog'
+      );
+
+      const rewards = document.getElementById(
+        'cloudPackRewards'
+      );
+
+      const summary = document.getElementById(
+        'cloudPackSummary'
+      );
+
+      if (!dialog || !rewards) return;
+
+      if (dialog.open) dialog.close();
+
+      rewards.replaceChildren();
+
+      const names = [
+        'Pikachu',
+        'Charmander',
+        'Squirtle',
+        'Bulbasaur',
+        'Eevee'
+      ];
+
+      names.forEach((name,index) => {
+        const card = document.createElement(
+          'div'
+        );
+
+        card.className = 'cloud-card';
+        card.style.setProperty(
+          '--rarity',
+          index===4?'#facc15':'#38bdf8'
+        );
+
+        const icon = document.createElement(
+          'div'
+        );
+
+        icon.textContent = [
+          '⚡','🔥','💧','🌱','✨'
+        ][index];
+
+        icon.style.fontSize = '55px';
+
+        const title = document.createElement(
+          'h4'
+        );
+
+        title.textContent = name;
+
+        card.append(icon,title);
+        rewards.append(card);
+      });
+
+      if (summary) {
+        summary.textContent =
+          'PRUEBA VISUAL · No se compraron cartas.';
+      }
+
+      dialog.showModal();
+
+      play({
+        packName:'Sobre de prueba'
+      });
+    };
+
+    store.prepend(button);
+  }
+
+  createTestButton();
 
 })();
