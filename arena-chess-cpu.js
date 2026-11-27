@@ -610,7 +610,7 @@
       }
 
       const response = await fetch(
-        URL + '/functions/v1/chess-cpu',
+        URL + '/functions/v1/dynamic-worker',
         {
           method:'POST',
           headers:{
