@@ -4,90 +4,100 @@
 
   const el = id => document.getElementById(id);
 
-  let db = null;
-  let uid = null;
-  let profile = null;
-
+  let db, uid, profile, session;
   let difficulties = [];
   let collection = [];
-
   let difficulty = null;
-  let selected = [null, null, null];
-
-  let session = null;
+  let selected = [null,null,null];
   let coins = 0;
   let healUntil = null;
-
   let loading = false;
   let busy = false;
   let ready = false;
-let cpuTurnTimer = null;
-let cpuSyncRequired = false;
+  let syncRequired = false;
+  let cpuTimer = null;
+  let animatedEvent = '';
+
+  const visible = () =>
+    !el('cpu').classList.contains('hidden');
+
   const check = r => {
     if (r.error) throw r.error;
     return r.data;
   };
 
-  const visible = () =>
-    !el('cpu').classList.contains('hidden');
-
   const status = text => {
     el('cpuStatus').textContent = text;
   };
 
+  function node(tag,text,cls,parent) {
+    const n = document.createElement(tag);
+    if (text != null) n.textContent = text;
+    if (cls) n.className = cls;
+    if (parent) parent.append(n);
+    return n;
+  }
+
   const css = document.createElement('style');
 
   css.textContent = `
-    #cpuDifficulties {
+    #cpu [hidden] {
+      display:none!important;
+    }
+
+    #cpuDifficulties,
+    .cpu-battle-actions {
       display:grid;
       grid-template-columns:
         repeat(2,minmax(0,1fr));
-      gap:10px;
+      gap:8px;
       margin:12px 0;
     }
 
     .cpu-difficulty {
       color:white;
       border:2px solid transparent;
-      border-radius:16px;
-      padding:15px 6px;
-      text-align:center;
+      border-radius:14px;
+      padding:14px 6px;
       min-width:0;
     }
 
     .cpu-difficulty.selected {
       border-color:#facc15;
-      box-shadow:0 0 16px #facc1566;
+      box-shadow:0 0 12px #facc1566;
     }
 
-    .cpu-difficulty small {
+    .cpu-difficulty small,
+    .cpu-battle-actions small {
       display:block;
-      margin-top:6px;
-      color:white;
-      font-size:12px;
+      margin-top:4px;
+      font-size:11px;
+      color:#e2e8f0;
     }
 
     .cpu-team-grid {
       display:grid;
       grid-template-columns:
         repeat(3,minmax(0,1fr));
-      gap:8px;
-      margin:15px 0;
+      gap:6px;
+      margin:12px 0;
     }
 
     .cpu-slot {
       background:#34296a;
       border:1px solid #8c72d7;
-      border-radius:14px;
-      padding:8px;
+      border-radius:12px;
+      padding:6px;
       text-align:center;
       min-width:0;
+      overflow-wrap:anywhere;
     }
 
     .cpu-slot select {
       width:100%;
+      min-width:0;
       font-size:12px;
-      padding:8px 3px;
+      padding:8px 2px;
     }
 
     .cpu-slot img {
@@ -97,19 +107,15 @@ let cpuSyncRequired = false;
       object-fit:contain;
     }
 
-    .cpu-slot strong {
-      display:block;
-      overflow-wrap:anywhere;
-      font-size:13px;
-    }
-
+    .cpu-slot strong,
     .cpu-slot small {
       display:block;
-      margin:6px 0;
+      margin:5px 0;
+      font-size:12px;
     }
 
     .cpu-empty {
-      font-size:45px;
+      font-size:42px;
       min-height:65px;
       display:grid;
       place-items:center;
@@ -117,201 +123,383 @@ let cpuSyncRequired = false;
 
     #cpuWallet {
       background:#39286c;
-      border-radius:12px;
-      padding:12px;
       color:#facc15;
+      border-radius:10px;
+      padding:9px;
       font-weight:bold;
     }
 
     #cpuStart {
       width:100%;
-      margin:12px 0;
-    }
-
-    #cpuResume {
-      padding:16px;
-      background:#34296a;
-      border:2px solid #facc15;
-      border-radius:16px;
-      margin:12px 0;
-    }
-
-    #cpuAccount button {
-      margin:8px 0;
+      margin:10px 0;
     }
 
     #cpuStatus {
       color:#ffde86;
+      font-size:13px;
       overflow-wrap:anywhere;
+    }
+
+    #cpuBattle {
+      width:100%;
+      box-sizing:border-box;
+      margin-top:8px;
+    }
+
+    .cpu-battle-header {
+      display:flex;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      gap:5px;
+      font-size:12px;
+    }
+
+    .cpu-battle-turn {
+      padding:10px;
+      margin:8px 0;
+      border-radius:10px;
+      background:#29354b;
+      text-align:center;
+      font-weight:800;
+    }
+
+    .cpu-battle-turn.mine {
+      background:#174b36;
+      color:#86efac;
+    }
+
+    .cpu-battle-grid {
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    .cpu-fighter {
+      display:grid;
+      grid-template-columns:
+        minmax(0,1fr) 42%;
+      gap:8px;
+      align-items:center;
+      padding:10px;
+      min-width:0;
+      border-radius:16px;
+      background:linear-gradient(
+        135deg,#25334b,#182235
+      );
+      border:1px solid #43516b;
+      overflow:hidden;
+    }
+
+    .cpu-fighter.own {
+      grid-template-columns:
+        42% minmax(0,1fr);
+      background:linear-gradient(
+        135deg,#35265c,#202b48
+      );
+      border-color:#6956a3;
+    }
+
+    .cpu-fighter-info {
+      min-width:0;
+      overflow-wrap:anywhere;
+    }
+
+    .cpu-fighter-info h3 {
+      font-size:18px;
+      margin:4px 0;
+    }
+
+    .cpu-fighter-info p {
+      font-size:12px;
+      margin:3px 0;
+    }
+
+    .cpu-fighter-label {
+      font-size:11px;
+      color:#cbd5e1;
+    }
+
+    .cpu-art {
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-width:0;
+    }
+
+    .cpu-art img {
+      width:100%;
+      max-width:220px;
+      height:145px;
+      object-fit:contain;
+      filter:drop-shadow(0 8px 8px #0006);
+    }
+
+    .cpu-bar {
+      width:100%;
+      height:10px;
+      background:#0b1220;
+      border-radius:20px;
+      overflow:hidden;
+      margin-top:5px;
+    }
+
+    .cpu-bar.energy {
+      height:6px;
+    }
+
+    .cpu-bar-fill {
+      height:100%;
+      border-radius:20px;
+      transition:width .3s;
+    }
+
+    .cpu-reserves {
+      display:flex;
+      gap:6px;
+      margin-top:8px;
+    }
+
+    .cpu-ball {
+      width:14px;
+      height:14px;
+      border-radius:50%;
+      background:linear-gradient(
+        #ef4444 44%,
+        #111 44%,
+        #111 56%,
+        white 56%
+      );
+      border:1px solid #111;
+    }
+
+    .cpu-ball.active {
+      outline:2px solid #facc15;
+      outline-offset:1px;
+    }
+
+    .cpu-ball.defeated {
+      opacity:.3;
+      filter:grayscale(1);
+    }
+
+    .cpu-event {
+      background:#111a30;
+      color:#facc15;
+      padding:8px;
+      border-radius:10px;
+      text-align:center;
+      font-size:12px;
+      min-height:34px;
+      overflow-wrap:anywhere;
+    }
+
+    .cpu-battle-actions button {
+      width:100%;
+      min-width:0;
+      min-height:50px;
+      color:white;
+      font-size:13px;
+      font-weight:800;
+      padding:8px 4px;
+      border-radius:10px;
+      border:1px solid #ffffff22;
+      box-sizing:border-box;
+      overflow-wrap:anywhere;
+      touch-action:manipulation;
+    }
+
+    .cpu-battle-actions button:disabled {
+      opacity:.4;
+      filter:saturate(.5);
+    }
+
+    .cpu-battle-log {
+      background:#17132e;
+      border-radius:12px;
+      padding:10px;
+      font-size:12px;
+      color:#cbd5e1;
+      margin-top:8px;
+    }
+
+    .cpu-battle-log p {
+      margin:6px 0;
+    }
+
+    .cpu-abandon {
+      width:100%;
+      background:#9f294b;
+      color:white;
+      margin-top:10px;
+    }
+
+    .cpu-result-card {
+      background:#252047;
+      border:1px solid #8c72d7;
+      border-radius:16px;
+      padding:16px;
+      text-align:center;
+      margin:12px 0;
+    }
+
+    .cpu-result-card button {
+      width:100%;
+      margin-top:10px;
+    }
+
+    .cpu-hit {
+      animation:cpu-hit .5s ease;
+    }
+
+    .cpu-attack {
+      animation:cpu-attack .5s ease;
+    }
+
+    .cpu-healing {
+      animation:cpu-healing .7s ease;
+    }
+
+    .cpu-defense {
+      animation:cpu-defense .7s ease;
+    }
+
+    @keyframes cpu-hit {
+      20%,60% {
+        transform:translateX(-5px);
+        filter:brightness(1.8);
+      }
+      40%,80% {
+        transform:translateX(5px);
+      }
+    }
+
+    @keyframes cpu-attack {
+      50% {
+        transform:scale(1.06);
+        filter:brightness(1.3);
+      }
+    }
+
+    @keyframes cpu-healing {
+      50% {
+        box-shadow:inset 0 0 35px #22c55e;
+      }
+    }
+
+    @keyframes cpu-defense {
+      50% {
+        box-shadow:inset 0 0 35px #38bdf8;
+      }
+    }
+
+    @media(max-width:600px) {
+      main:has(#cpu:not(.hidden)) {
+        width:100%!important;
+        max-width:100%!important;
+        padding-left:4px!important;
+        padding-right:4px!important;
+        box-sizing:border-box;
+      }
+
+      #cpu {
+        width:100%!important;
+        max-width:100%!important;
+        margin-left:0!important;
+        margin-right:0!important;
+        padding:6px!important;
+        box-sizing:border-box;
+      }
+
+      .cpu-fighter {
+        padding:8px;
+      }
+
+      .cpu-art img {
+        height:125px;
+      }
+    }
+
+    @media(prefers-reduced-motion:reduce) {
+      .cpu-hit,.cpu-attack,
+      .cpu-healing,.cpu-defense {
+        animation:none!important;
+      }
     }
   `;
 
   document.head.append(css);
 
-const battleCss = document.createElement('style');
+  const levels = {
+    easy:'Fácil',
+    normal:'Normal',
+    hard:'Difícil',
+    expert:'Experto'
+  };
 
-battleCss.textContent = `
-  #cpuBattle {
-    margin-top:16px;
+  const effects = {
+    normal:'Sin alteraciones',
+    burn:'🔥 Quemadura',
+    freeze:'❄️ Congelado',
+    paralysis:'⚡ Parálisis',
+    poison:'☠️ Veneno',
+    sleep:'💤 Dormido',
+    confusion:'💫 Confusión'
+  };
+
+  const elements = {
+    normal:'Normal',
+    fire:'🔥 Fuego',
+    water:'💧 Agua',
+    grass:'🌱 Planta',
+    electric:'⚡ Eléctrico',
+    ice:'❄️ Hielo',
+    fighting:'🥊 Lucha',
+    poison:'☠️ Veneno',
+    ground:'Tierra',
+    flying:'Volador',
+    psychic:'🔮 Psíquico',
+    bug:'Bicho',
+    rock:'Roca',
+    ghost:'👻 Fantasma',
+    dragon:'🐉 Dragón',
+    dark:'Siniestro',
+    steel:'Acero',
+    fairy:'Hada'
+  };
+
+  const actions = [
+    ['normal','⚔️ Ataque normal','#334155'],
+    ['strong','💥 Ataque fuerte','#854d0e'],
+    ['elemental','⚡ Elemental','#1e40af'],
+    ['ultimate','🔥 Definitivo','#991b1b'],
+    ['shield','🛡️ Escudo','#155e75'],
+    ['boost','🚀 Potenciador','#6b21a8'],
+    ['heal','💚 Curación','#166534'],
+    ['switch','🔄 Cambiar Pokémon','#433878']
+  ];
+
+  function image(p) {
+    const fallback = () => {
+      const n = node('div',p?.emoji || '✨');
+      n.style.fontSize = '42px';
+      return n;
+    };
+
+    if (!p?.image_url) return fallback();
+
+    const img = node('img');
+    img.src = p.image_url;
+    img.alt = p.name;
+    img.onerror = () => img.replaceWith(fallback());
+    return img;
   }
 
-  .cpu-battle-header {
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    flex-wrap:wrap;
-    gap:8px;
-    margin-bottom:12px;
+  function drawWallet() {
+    el('cpuWallet').textContent =
+      '🪙 Monedas online: ' + coins;
   }
-
-  .cpu-battle-turn {
-    background:#39286c;
-    border:1px solid #8c72d7;
-    border-radius:12px;
-    padding:12px;
-    text-align:center;
-    font-weight:bold;
-    margin:12px 0;
-  }
-
-  .cpu-battle-grid {
-    display:grid;
-    grid-template-columns:
-      repeat(2,minmax(0,1fr));
-    gap:8px;
-  }
-
-  .cpu-fighter {
-    min-width:0;
-    background:#34296a;
-    border:1px solid #8c72d7;
-    border-radius:16px;
-    padding:10px;
-    text-align:center;
-    overflow:hidden;
-  }
-
-  .cpu-fighter h3 {
-    margin:6px 0;
-    overflow-wrap:anywhere;
-    font-size:17px;
-  }
-
-  .cpu-fighter img {
-    width:100%;
-    max-width:180px;
-    aspect-ratio:1;
-    object-fit:contain;
-    filter:drop-shadow(0 8px 8px #0005);
-  }
-
-  .cpu-fighter p {
-    font-size:12px;
-    margin:7px 0;
-  }
-
-  .cpu-fighter-label {
-    color:#ddd6fe;
-    font-size:12px;
-    font-weight:bold;
-  }
-
-  .cpu-bar {
-    height:12px;
-    background:#17132e;
-    border-radius:20px;
-    overflow:hidden;
-    margin-top:8px;
-  }
-
-  .cpu-bar-fill {
-    height:100%;
-    border-radius:20px;
-    transition:width .35s ease;
-  }
-
-  .cpu-reserves {
-    display:grid;
-    grid-template-columns:
-      repeat(3,minmax(0,1fr));
-    gap:4px;
-    margin-top:12px;
-  }
-
-  .cpu-reserve {
-    min-width:0;
-    background:#211a53;
-    border:1px solid #6554a0;
-    border-radius:9px;
-    padding:4px;
-    font-size:9px;
-    overflow-wrap:anywhere;
-  }
-
-  .cpu-reserve.active {
-    border:2px solid #facc15;
-  }
-
-  .cpu-reserve.defeated {
-    opacity:.4;
-    filter:grayscale(1);
-  }
-
-  .cpu-reserve img {
-    width:100%;
-    max-width:55px;
-    aspect-ratio:1;
-    object-fit:contain;
-  }
-
-  .cpu-reserve span {
-    display:block;
-  }
-
-  .cpu-battle-actions {
-    display:grid;
-    grid-template-columns:
-      repeat(2,minmax(0,1fr));
-    gap:8px;
-    margin:15px 0;
-  }
-
-  .cpu-battle-actions button {
-    min-width:0;
-    color:white;
-    font-size:13px;
-    padding:12px 5px;
-    border-radius:12px;
-  }
-
-  .cpu-battle-actions small {
-    display:block;
-    color:white;
-    font-size:10px;
-    margin-top:5px;
-  }
-
-  .cpu-battle-log {
-    background:#17132e;
-    border-radius:12px;
-    padding:12px;
-    color:#ffde86;
-    font-size:13px;
-    overflow-wrap:anywhere;
-  }
-
-  .cpu-abandon {
-    width:100%;
-    background:#9f294b;
-    color:white;
-    margin-top:15px;
-  }
-`;
-
-document.head.append(battleCss);
 
   async function connect() {
-
     if (!window.supabase) {
       throw Error('Supabase no disponible');
     }
@@ -321,15 +509,11 @@ document.head.append(battleCss);
       'sb_publishable_oeSBm8VNRI5Upna4skkHKg_JOB5rbDU'
     );
 
-    const { session: authSession } = check(
-      await db.auth.getSession()
-    );
+    const auth = check(await db.auth.getSession());
 
-    if (!authSession) return false;
+    if (!auth.session) return false;
 
-    const { user } = check(
-      await db.auth.getUser()
-    );
+    const {user} = check(await db.auth.getUser());
 
     if (!user) return false;
 
@@ -338,375 +522,265 @@ document.head.append(battleCss);
     profile = check(
       await db.from('players')
         .select('id,nickname')
-        .eq('id', uid)
+        .eq('id',uid)
         .maybeSingle()
     );
 
     if (!profile) return false;
 
-    check(await db.rpc(
-      'initialize_player_inventory'
-    ));
+    check(await db.rpc('initialize_player_inventory'));
 
     return true;
   }
 
   function drawAccount(connected) {
-
     const box = el('cpuAccount');
 
     box.replaceChildren();
 
     if (connected && profile) {
-
-      const p = document.createElement('p');
-
-      p.textContent =
-        '👤 Entrenador: ' + profile.nickname;
-
-      box.append(p);
-
+      node('p','👤 '+profile.nickname,null,box);
       return;
     }
 
-    const p = document.createElement('p');
+    node(
+      'p',
+      'Necesitas un perfil online para jugar.',
+      null,
+      box
+    );
 
-    p.textContent =
-      'Necesitas un perfil online para jugar contra CPU.';
+    const b = node(
+      'button',
+      '🌐 Crear o recuperar perfil',
+      null,
+      box
+    );
 
-    const button = document.createElement('button');
-
-    button.type = 'button';
-
-    button.textContent =
-      '🌐 Ir al multijugador online';
-
-    button.onclick = () => window.show('online');
-
-    box.append(p, button);
+    b.type = 'button';
+    b.onclick = () => window.show('online');
   }
 
-  function drawWallet() {
+  async function recoverData() {
+    const r = check(
+      await db.rpc('recover_cpu_sessions')
+    );
 
-    el('cpuWallet').textContent =
-      '🪙 Monedas online: ' + coins;
+    if (!r?.success) {
+      throw Error(
+        r?.message || r?.error ||
+        'No se pudo recuperar la partida'
+      );
+    }
+
+    coins = Number(r.coins ?? coins);
+    healUntil = r.heal_available_at || null;
+
+    drawWallet();
+
+    return r.sessions || [];
   }
 
   async function loadData() {
-
     const results = await Promise.all([
-
       db.from('cpu_difficulties')
-        .select(
-          'id,name,intelligence_level,pokemon_reward'
-        )
-        .eq('active', true)
+        .select('id,name,intelligence_level,pokemon_reward')
+        .eq('active',true)
         .order('intelligence_level'),
 
       db.from('player_collection')
         .select('pokemon_id,quantity')
-        .eq('player_id', uid)
-        .gt('quantity', 0),
+        .eq('player_id',uid)
+        .gt('quantity',0),
 
       db.from('pokemon_catalog')
-        .select(
-          'id,name,emoji,image_url,max_hp,element,rarity'
-        ),
+        .select('id,name,emoji,image_url,max_hp,element,rarity'),
 
-      db.rpc('recover_cpu_sessions')
-
+      recoverData()
     ]);
 
-    const [
-      levels,
-      owned,
-      catalog,
-      recovered
-    ] = results.map(check);
+    difficulties = check(results[0]) || [];
 
-    if (!recovered?.success) {
+    const owned = check(results[1]) || [];
+    const catalog = check(results[2]) || [];
+    const recovered = results[3];
 
-      throw Error(
-        recovered?.message ||
-        recovered?.error ||
-        'No se pudieron recuperar las partidas'
-      );
-    }
-
-    difficulties = levels || [];
-
-    const catalogMap = new Map(
-      catalog.map(p => [p.id, p])
+    const map = new Map(
+      catalog.map(p => [p.id,p])
     );
 
     collection = owned
-      .filter(row => catalogMap.has(row.pokemon_id))
-      .map(row => ({
-        ...catalogMap.get(row.pokemon_id),
-        quantity: Number(row.quantity)
+      .filter(p => map.has(p.pokemon_id))
+      .map(p => ({
+        ...map.get(p.pokemon_id),
+        quantity:Number(p.quantity)
       }))
-      .sort((a, b) =>
-        a.name.localeCompare(b.name)
-      );
+      .sort((a,b) => a.name.localeCompare(b.name));
 
-    coins = Number(recovered.coins ?? 0);
+    session = recovered.find(s =>
+      s.game_type === 'pokemon' &&
+      s.status === 'playing'
+    ) || null;
 
-    healUntil =
-      recovered.heal_available_at || null;
-
-    session = (recovered.sessions || [])
-      .find(s =>
-        s.game_type === 'pokemon' &&
-        s.status === 'playing'
-      ) || null;
-
-    if (!difficulties.some(
-      d => d.id === difficulty
-    )) {
+    if (!difficulties.some(d => d.id === difficulty)) {
       difficulty = null;
     }
 
     selected = selected.map(id =>
       collection.some(p => p.id === id)
-        ? id
-        : null
+        ? id : null
     );
   }
 
   function drawDifficulties() {
-
     const box = el('cpuDifficulties');
 
     box.replaceChildren();
 
     const colors = {
-      easy: '#166534',
-      normal: '#1e40af',
-      hard: '#9a3412',
-      expert: '#991b1b'
+      easy:'#166534',
+      normal:'#1e40af',
+      hard:'#9a3412',
+      expert:'#991b1b'
     };
 
     const icons = {
-      easy: '🟢',
-      normal: '🔵',
-      hard: '🟠',
-      expert: '🔴'
+      easy:'🟢',
+      normal:'🔵',
+      hard:'🟠',
+      expert:'🔴'
     };
 
     for (const d of difficulties) {
+      const b = node(
+        'button',
+        null,
+        'cpu-difficulty',
+        box
+      );
 
-      const button =
-        document.createElement('button');
+      b.type = 'button';
+      b.style.background = colors[d.id] || '#4e3b96';
+      b.disabled = busy || loading;
 
-      button.type = 'button';
-
-      button.className =
-        'cpu-difficulty';
-
-      button.style.background =
-        colors[d.id] || '#4e3b96';
-
-      button.classList.toggle(
+      b.classList.toggle(
         'selected',
         difficulty === d.id
       );
 
-      button.disabled = busy || loading;
-
-      button.setAttribute(
+      b.setAttribute(
         'aria-pressed',
         String(difficulty === d.id)
       );
 
-      const name =
-        document.createElement('strong');
-
-      name.textContent =
-        (icons[d.id] || '🎯') + ' ' + d.name;
-
-      const reward =
-        document.createElement('small');
-
-      reward.textContent =
-        '🏆 ' + d.pokemon_reward + ' monedas';
-
-      const intelligence =
-        document.createElement('small');
-
-      intelligence.textContent =
-        'Nivel ' + d.intelligence_level;
-
-      button.append(
-        name,
-        reward,
-        intelligence
+      node(
+        'strong',
+        (icons[d.id] || '🎯')+' '+d.name,
+        null,b
       );
 
-      button.onclick = () => {
+      node(
+        'small',
+        '🏆 '+d.pokemon_reward+' monedas',
+        null,b
+      );
 
+      node(
+        'small',
+        'Nivel '+d.intelligence_level,
+        null,b
+      );
+
+      b.onclick = () => {
         if (busy || loading) return;
-
         difficulty = d.id;
-
         drawDifficulties();
-
         validateTeam();
       };
-
-      box.append(button);
     }
   }
 
   function drawTeam() {
-
     const box = el('cpuTeamSelection');
 
     box.replaceChildren();
 
-    const grid =
-      document.createElement('div');
+    const grid = node(
+      'div',null,'cpu-team-grid',box
+    );
 
-    grid.className = 'cpu-team-grid';
-
-    for (let i = 0; i < 3; i++) {
-
-      const slot =
-        document.createElement('div');
-
-      slot.className = 'cpu-slot';
-
-      const title =
-        document.createElement('strong');
-
-      title.textContent =
-        'Pokémon ' + (i + 1);
-
-      slot.append(title);
-
-      const pokemon = collection.find(
-        p => p.id === selected[i]
+    for (let i=0;i<3;i++) {
+      const slot = node(
+        'div',null,'cpu-slot',grid
       );
 
-      if (pokemon?.image_url) {
+      node('strong','Pokémon '+(i+1),null,slot);
 
-        const img =
-          document.createElement('img');
+      const p = collection.find(
+        x => x.id === selected[i]
+      );
 
-        img.src = pokemon.image_url;
-        img.alt = pokemon.name;
-
-        img.onerror = () => {
-
-          const emoji =
-            document.createElement('div');
-
-          emoji.className = 'cpu-empty';
-
-          emoji.textContent =
-            pokemon.emoji || '✨';
-
-          img.replaceWith(emoji);
-        };
-
-        slot.append(img);
-
+      if (p) {
+        slot.append(image(p));
       } else {
-
-        const emoji =
-          document.createElement('div');
-
-        emoji.className = 'cpu-empty';
-
-        emoji.textContent =
-          pokemon?.emoji || '❔';
-
-        slot.append(emoji);
+        node('div','❔','cpu-empty',slot);
       }
 
-      const info =
-        document.createElement('small');
+      node(
+        'small',
+        p ? p.max_hp+' PV' : 'Sin seleccionar',
+        null,slot
+      );
 
-      info.textContent = pokemon
-        ? pokemon.max_hp + ' PV'
-        : 'Sin seleccionar';
-
-      slot.append(info);
-
-      const select =
-        document.createElement('select');
+      const select = node('select',null,null,slot);
 
       select.setAttribute(
         'aria-label',
-        'Pokémon ' + (i + 1)
+        'Pokémon '+(i+1)
       );
 
-      select.add(
-        new Option('Seleccionar', '')
-      );
+      select.add(new Option('Seleccionar',''));
 
-      for (const p of collection) {
-
-        const option =
-          new Option(p.name, p.id);
+      for (const pokemon of collection) {
+        const option = new Option(
+          pokemon.name,pokemon.id
+        );
 
         option.disabled = selected.some(
-          (id, index) =>
-            index !== i && id === p.id
+          (id,index) =>
+            index !== i && id === pokemon.id
         );
 
         select.add(option);
       }
 
       select.value = selected[i] || '';
-
       select.disabled = busy || loading;
 
       select.onchange = () => {
-
         selected[i] = select.value || null;
-
         drawTeam();
-
         validateTeam();
       };
-
-      slot.append(select);
-
-      grid.append(slot);
     }
 
-    box.append(grid);
-
-    const count =
-      document.createElement('small');
-
-    count.textContent =
-      'Pokémon disponibles: ' +
-      collection.length;
-
-    box.append(count);
+    node(
+      'small',
+      'Pokémon disponibles: '+collection.length,
+      null,box
+    );
   }
 
   function validateTeam() {
-
     const valid =
-
       ready &&
-
       !busy &&
-
       !loading &&
-
       !session &&
-
-      difficulties.some(
-        d => d.id === difficulty
-      ) &&
-
+      difficulties.some(d => d.id === difficulty) &&
       selected.every(id =>
         id && collection.some(p => p.id === id)
       ) &&
-
       new Set(selected).size === 3;
 
     el('cpuStart').disabled = !valid;
@@ -714,1205 +788,861 @@ document.head.append(battleCss);
     return valid;
   }
 
-function cpuNode(tag, text, className) {
-
-  const node = document.createElement(tag);
-
-  if (text !== undefined && text !== null) {
-    node.textContent = text;
-  }
-
-  if (className) {
-    node.className = className;
-  }
-
-  return node;
-}
-
-function cpuPokemonImage(pokemon) {
-
-  const fallback = () => {
-
-    const emoji = cpuNode(
-      'div',
-      pokemon.emoji || '✨'
-    );
-
-    emoji.style.fontSize = '40px';
-
-    return emoji;
-  };
-
-  if (!pokemon.image_url) {
-    return fallback();
-  }
-
-  const img = document.createElement('img');
-
-  img.src = pokemon.image_url;
-  img.alt = pokemon.name;
-  img.loading = 'lazy';
-
-  img.onerror = () => {
-    img.replaceWith(fallback());
-  };
-
-  return img;
-}
-
-function cpuElementName(element) {
-
-  const labels = {
-    normal: '⭐ Normal',
-    fire: '🔥 Fuego',
-    water: '💧 Agua',
-    grass: '🌱 Planta',
-    electric: '⚡ Eléctrico',
-    ice: '❄️ Hielo',
-    fighting: '🥊 Lucha',
-    poison: '☠️ Veneno',
-    ground: '🟤 Tierra',
-    flying: '🪽 Volador',
-    psychic: '🔮 Psíquico',
-    bug: '🐛 Bicho',
-    rock: '🪨 Roca',
-    ghost: '👻 Fantasma',
-    dragon: '🐉 Dragón',
-    dark: '🌑 Siniestro',
-    steel: '⚙️ Acero',
-    fairy: '✨ Hada'
-  };
-
-  return labels[element] || element || '—';
-}
-
-function cpuBar(value, maximum, color) {
-
-  const bar = cpuNode(
-    'div',
-    null,
-    'cpu-bar'
-  );
-
-  const fill = cpuNode(
-    'div',
-    null,
-    'cpu-bar-fill'
-  );
-
-  const percent = Math.max(
-    0,
-    Math.min(
-      100,
-      Number(value) /
-      Math.max(1, Number(maximum)) * 100
-    )
-  );
-
-  fill.style.width = percent + '%';
-  fill.style.background = color;
-
-  bar.append(fill);
-
-  return bar;
-}
-
-function cpuDrawReserves(player) {
-
-  const box = cpuNode(
-    'div',
-    null,
-    'cpu-reserves'
-  );
-
-  (player.team || []).forEach((p, i) => {
-
-    const card = cpuNode(
+  function bar(value,max,color,energy=false) {
+    const b = node(
       'div',
       null,
-      'cpu-reserve'
+      'cpu-bar'+(energy?' energy':'')
     );
 
-    card.classList.toggle(
-      'active',
-      i === Number(player.active)
+    const fill = node(
+      'div',null,'cpu-bar-fill',b
     );
 
-    card.classList.toggle(
-      'defeated',
-      Number(p.hp) <= 0
+    fill.style.width = Math.max(
+      0,
+      Math.min(100,100*value/Math.max(1,max))
+    )+'%';
+
+    fill.style.background = color;
+
+    return b;
+  }
+
+  function fighter(player,own) {
+    const card = node(
+      'div',
+      null,
+      'cpu-fighter'+(own?' own':'')
     );
 
-    card.append(
-      cpuPokemonImage(p),
-      cpuNode('span', p.name),
-      cpuNode(
-        'span',
-        p.hp + '/' + p.max_hp
+    const p = player.team?.[Number(player.active)];
+
+    if (!p) {
+      node('p','Sin Pokémon activo',null,card);
+      return card;
+    }
+
+    const info = node(
+      'div',null,'cpu-fighter-info'
+    );
+
+    node(
+      'div',
+      (own?'Tú · ':'Rival · ')+player.nickname,
+      'cpu-fighter-label',
+      info
+    );
+
+    node('h3',p.name,null,info);
+
+    node(
+      'p',
+      elements[p.element] || p.element,
+      null,info
+    );
+
+    const ratio = p.hp/Math.max(1,p.max_hp);
+
+    const color =
+      ratio>.5 ? '#4ade80' :
+      ratio>.2 ? '#facc15' : '#ef4444';
+
+    info.append(bar(p.hp,p.max_hp,color));
+
+    node(
+      'p',
+      p.hp+' / '+p.max_hp+' PV',
+      null,info
+    );
+
+    info.append(
+      bar(
+        player.energy || 0,
+        100,
+        player.energy>=100?'#facc15':'#38bdf8',
+        true
       )
     );
 
-    box.append(card);
-  });
-
-  return box;
-}
-
-function cpuDrawFighter(player, label) {
-
-  const card = cpuNode(
-    'div',
-    null,
-    'cpu-fighter'
-  );
-
-  const pokemon =
-    player.team?.[Number(player.active)];
-
-  card.append(
-    cpuNode(
-      'div',
-      label,
-      'cpu-fighter-label'
-    ),
-    cpuNode('h3', player.nickname || label)
-  );
-
-  if (!pokemon) {
-
-    card.append(
-      cpuNode('p', 'Sin Pokémon activo')
+    node(
+      'p',
+      '⚡ Energía '+(player.energy||0)+'/100',
+      null,info
     );
+
+    node(
+      'p',
+      (effects[p.status]||p.status||'Normal')+
+      (p.status_turns
+        ?' · '+p.status_turns+' turnos':''),
+      null,info
+    );
+
+    if (player.shield || player.boost) {
+      node(
+        'p',
+        (player.shield?'🛡️ Escudo ':'')+
+        (player.boost?'🚀 Potenciador':''),
+        null,info
+      );
+    }
+
+    const reserves = node(
+      'div',null,'cpu-reserves',info
+    );
+
+    player.team.forEach((pokemon,i) => {
+      const ball = node(
+        'span',null,'cpu-ball',reserves
+      );
+
+      ball.classList.toggle(
+        'active',i===Number(player.active)
+      );
+
+      ball.classList.toggle(
+        'defeated',pokemon.hp<=0
+      );
+
+      ball.title =
+        pokemon.name+' · '+pokemon.hp+
+        '/'+pokemon.max_hp+' PV';
+    });
+
+    const art = node('div',null,'cpu-art');
+
+    art.append(image(p));
+
+    if (own) {
+      card.append(art,info);
+    } else {
+      card.append(info,art);
+    }
 
     return card;
   }
 
-  card.append(
-    cpuPokemonImage(pokemon),
-    cpuNode('h3', pokemon.name),
-    cpuNode(
-      'p',
-      cpuElementName(pokemon.element)
-    )
-  );
-
-  const ratio =
-    Number(pokemon.hp) /
-    Math.max(1, Number(pokemon.max_hp));
-
-  const hpColor =
-    ratio > 0.5 ? '#52df7c' :
-    ratio > 0.25 ? '#facc15' :
-    '#ef4444';
-
-  card.append(
-    cpuBar(
-      pokemon.hp,
-      pokemon.max_hp,
-      hpColor
-    ),
-    cpuNode(
-      'p',
-      pokemon.hp + ' / ' +
-      pokemon.max_hp + ' PV'
-    ),
-    cpuBar(
-  player.energy ?? 0,
-  100,
-  Number(player.energy) >= 100
-    ? '#facc15'
-    : '#38bdf8'
-),
-cpuNode(
-  'p',
-  '⚡ Energía: ' +
-  (player.energy ?? 0) +
-  ' / 100'
-)
-  );
-
-  const condition =
-    pokemon.status === 'normal'
-      ? '🟢 Sin alteraciones'
-      : '⚠️ ' + pokemon.status +
-        ' · ' +
-        (pokemon.status_turns || 0) +
-        ' turnos';
-
-  card.append(
-    cpuNode('p', condition),
-    cpuNode(
-      'p',
-      '🛡️ Escudo: ' +
-      (player.shield ? 'Activo' : 'No')
-    ),
-    cpuNode(
-      'p',
-      '💪 Potenciador: ' +
-      (player.boost ? 'Activo' : 'No')
-    ),
-    cpuDrawReserves(player)
-  );
-
-  return card;
-}
-
-function cpuHealSeconds(player) {
-
-  const dates = [
-    healUntil,
-    player?.heal_available_at
-  ]
-    .filter(Boolean)
-    .map(value => new Date(value).getTime())
-    .filter(Number.isFinite);
-
-  if (!dates.length) return 0;
-
-  return Math.max(
-    0,
-    Math.ceil(
-      (Math.max(...dates) - Date.now()) / 1000
-    )
-  );
-}
-
-function cpuAvailableReserves(player) {
-
-  return (player.team || [])
-    .map((pokemon, index) => ({
-      pokemon,
-      index
-    }))
-    .filter(item =>
-      item.index !== Number(player.active) &&
-      Number(item.pokemon.hp) > 0
+  function healSeconds(player) {
+    const time = Math.max(
+      Date.parse(healUntil)||0,
+      Date.parse(player?.heal_available_at)||0
     );
-}
 
-function cpuActionAvailability(player, action) {
-
-  if (!session || session.status !== 'playing') {
-
-    return {
-      allowed: false,
-      reason: 'Combate finalizado'
-    };
+    return Math.max(
+      0,Math.ceil((time-Date.now())/1000)
+    );
   }
 
-  if (busy || loading) {
-
-    return {
-      allowed: false,
-      reason: 'Procesando...'
-    };
+  function reserves(player) {
+    return (player.team||[])
+      .map((pokemon,index) => ({pokemon,index}))
+      .filter(x =>
+        x.index!==Number(player.active) &&
+        x.pokemon.hp>0
+      );
   }
 
-  if (Number(session.current_turn) !== 1) {
-
-    return {
-      allowed: false,
-      reason: 'Turno de la CPU'
-    };
-  }
-
-  const pokemon =
-    player.team?.[Number(player.active)];
-
-  if (!pokemon || Number(pokemon.hp) <= 0) {
-
-    return {
-      allowed: false,
-      reason: 'Pokémon no disponible'
-    };
-  }
-
-  const cooldown = Number(
-    pokemon.cooldowns?.[action] || 0
-  );
-
-  if (cooldown > 0) {
-
-    return {
-      allowed: false,
-      reason: 'Recarga: ' + cooldown + ' turnos'
-    };
-  }
-
-  if (
-    action === 'ultimate' &&
-    Number(player.energy || 0) < 100
-  ) {
-
-    return {
-      allowed: false,
-      reason: 'Requiere 100 de energía'
-    };
-  }
-
-  if (action === 'heal') {
-
-    if (
-      Number(pokemon.hp) >=
-      Number(pokemon.max_hp)
-    ) {
-
-      return {
-        allowed: false,
-        reason: 'Vida completa'
-      };
+  function availability(player,action) {
+    if (!session || session.status!=='playing') {
+      return 'Combate finalizado';
     }
 
-    const seconds = cpuHealSeconds(player);
+    if (syncRequired) return 'Sincronización requerida';
 
-    if (seconds > 0) {
+    if (busy || loading) return 'Procesando…';
 
-      return {
-        allowed: false,
-        reason: 'Disponible en ' + seconds + ' s'
-      };
+    if (Number(session.current_turn)!==1) {
+      return 'Turno de la CPU';
     }
+
+    const p = player.team?.[Number(player.active)];
+
+    if (!p || p.hp<=0) return 'No disponible';
+
+    const cd = Number(p.cooldowns?.[action]||0);
+
+    if (cd>0) return 'Recarga: '+cd+' turnos';
+
+    if (action==='ultimate' && player.energy<100) {
+      return 'Requiere 100 de energía';
+    }
+
+    if (action==='heal') {
+      if (p.hp>=p.max_hp) return 'Vida completa';
+
+      const sec = healSeconds(player);
+
+      if (sec>0) return 'Disponible en '+sec+' s';
+    }
+
+    if (action==='switch' && !reserves(player).length) {
+      return 'Sin reservas disponibles';
+    }
+
+    return '';
   }
 
-  if (
-    action === 'switch' &&
-    cpuAvailableReserves(player).length === 0
-  ) {
+  function drawSwitch(player,box) {
+    if (availability(player,'switch')) return;
 
-    return {
-      allowed: false,
-      reason: 'Sin reservas disponibles'
+    box.replaceChildren();
+
+    const title = node(
+      'strong',
+      'Selecciona tu próximo Pokémon',
+      null,box
+    );
+
+    title.style.gridColumn = '1/-1';
+
+    for (const {pokemon,index} of reserves(player)) {
+      const b = node('button',null,null,box);
+
+      b.type = 'button';
+      b.style.background = '#34296a';
+
+      const img = image(pokemon);
+      img.style.width = '85px';
+      img.style.maxWidth = '100%';
+
+      b.append(img);
+
+      node('div',pokemon.name,null,b);
+
+      node(
+        'small',
+        pokemon.hp+'/'+pokemon.max_hp+' PV',
+        null,b
+      );
+
+      b.onclick = () => execute('switch',index);
+    }
+
+    const cancel = node(
+      'button','Cancelar',null,box
+    );
+
+    cancel.type = 'button';
+    cancel.style.gridColumn = '1/-1';
+    cancel.onclick = drawBattle;
+  }
+
+  function drawActions(player) {
+    const box = node(
+      'div',null,'cpu-battle-actions'
+    );
+
+    const p = player.team[player.active];
+
+    const details = {
+      normal:'Daño base: '+p.normal_damage,
+      strong:'Ataque de mayor potencia',
+      elemental:'Ataque de elemento',
+      ultimate:'Consume 100 de energía',
+      shield:'Activa protección',
+      boost:'Potencia el ataque',
+      heal:'Recupera hasta 25% de PV',
+      switch:reserves(player).length+' reservas'
     };
-  }
 
-  return {
-    allowed: true,
-    reason: ''
-  };
-}
+    for (const [action,label,color] of actions) {
+      const b = node('button',label,null,box);
 
-function cancelCpuTurn() {
+      b.type = 'button';
+      b.dataset.action = action;
+      b.style.background = color;
 
-  if (cpuTurnTimer !== null) {
+      const reason = availability(player,action);
 
-    clearTimeout(cpuTurnTimer);
+      b.disabled = !!reason;
 
-    cpuTurnTimer = null;
-  }
-}
+      node(
+        'small',
+        reason || details[action],
+        null,b
+      );
 
-function scheduleCpuTurn() {
-
-  cancelCpuTurn();
-
-  if (
-    !visible() ||
-    !ready ||
-    busy ||
-    loading ||
-    cpuSyncRequired ||
-    !session ||
-    session.status !== 'playing' ||
-    Number(session.current_turn) !== 2
-  ) {
-
-    return;
-  }
-
-  const matchId = session.match_id;
-  const version = session.version;
-
-  cpuTurnTimer = setTimeout(() => {
-
-    cpuTurnTimer = null;
-
-    if (
-      !visible() ||
-      busy ||
-      loading ||
-      cpuSyncRequired ||
-      !session ||
-      session.match_id !== matchId ||
-      session.version !== version ||
-      session.status !== 'playing' ||
-      Number(session.current_turn) !== 2
-    ) {
-
-      return;
-    }
-
-    executeCpuAction('cpu_turn');
-
-  }, 900);
-}
-
-async function executeCpuAction(
-  action,
-  target = null
-) {
-
-  if (
-    !visible() ||
-    !ready ||
-    busy ||
-    loading ||
-    cpuSyncRequired ||
-    !session ||
-    session.status !== 'playing'
-  ) {
-
-    return;
-  }
-
-  const player =
-    session.game_state?.players?.['1'];
-
-  if (!player) return;
-
-  const turn =
-    Number(session.current_turn);
-
-  if (action === 'cpu_turn') {
-
-    if (turn !== 2) return;
-
-  } else {
-
-    if (turn !== 1) return;
-
-    const availability =
-      cpuActionAvailability(player, action);
-
-    if (!availability.allowed) {
-
-      status(availability.reason);
-
-      return;
-    }
-
-    if (action === 'switch') {
-
-      const validTarget =
-        cpuAvailableReserves(player)
-          .some(item => item.index === target);
-
-      if (!validTarget) return;
-
-    } else {
-
-      target = null;
-    }
-  }
-
-  cancelCpuTurn();
-
-  busy = true;
-
-  const matchId = session.match_id;
-  const expectedVersion = session.version;
-
-  let completed = false;
-
-  drawBattle();
-
-  status(
-    action === 'cpu_turn'
-      ? '🤖 La CPU está pensando...'
-      : '⚔️ Ejecutando movimiento...'
-  );
-
-  try {
-
-    const result = check(
-      await db.rpc(
-        'pokemon_cpu_action',
-        {
-          p_match_id: matchId,
-          p_action: action,
-          p_expected_version: expectedVersion,
-          p_target: target
+      b.onclick = () => {
+        if (action==='switch') {
+          drawSwitch(player,box);
+        } else {
+          execute(action);
         }
-      )
+      };
+    }
+
+    return box;
+  }
+
+  function tickHeal() {
+    if (!visible() || !session) return;
+
+    const b = el('cpuBattle').querySelector(
+      '[data-action="heal"]'
     );
 
-    if (!result?.success) {
+    const player = session.game_state?.players?.['1'];
 
-      throw new Error(
-        result?.message ||
-        result?.error ||
-        'No se pudo ejecutar el movimiento.'
+    if (!b || !player) return;
+
+    const reason = availability(player,'heal');
+
+    b.disabled = !!reason;
+
+    const small = b.querySelector('small');
+
+    if (small) {
+      small.textContent =
+        reason || 'Recupera hasta 25% de PV';
+    }
+  }
+
+  function describe(ev) {
+    if (!ev) return '¡Comienza el combate!';
+
+    const actor = Number(ev.player)===1
+      ? 'Tú' : 'CPU';
+
+    const name = ev.pokemon || 'Pokémon';
+
+    const label = actions.find(
+      a => a[0]===ev.action
+    )?.[1] || ev.action;
+
+    let text = actor+': '+name+' · '+label;
+
+    if (ev.action==='status_skip') {
+      text = actor+': '+name+' perdió su turno';
+    }
+
+    if (ev.missed) text += ' · Falló';
+
+    if (ev.damage) text += ' · −'+ev.damage+' PV';
+
+    if (ev.healing) text += ' · +'+ev.healing+' PV';
+
+    if (ev.critical) text += ' · ¡Crítico!';
+
+    if (!ev.missed && ev.multiplier>1) {
+      text += ' · ¡Muy efectivo!';
+    }
+
+    if (!ev.missed && ev.multiplier===0) {
+      text += ' · Sin efecto';
+    } else if (
+      !ev.missed &&
+      ev.multiplier>0 &&
+      ev.multiplier<1
+    ) {
+      text += ' · Poco efectivo';
+    }
+
+    if (ev.status_applied) {
+      text += ' · '+(
+        effects[ev.status_applied] ||
+        ev.status_applied
       );
     }
+
+    return text;
+  }
+
+  function drawBattle() {
+    const box = el('cpuBattle');
+
+    box.replaceChildren();
+
+    if (!session?.game_state) {
+      box.hidden = true;
+      return;
+    }
+
+    const game = session.game_state;
+    const player = game.players?.['1'];
+    const opponent = game.players?.['2'];
+
+    if (!player || !opponent) {
+      box.hidden = true;
+      status('Estado de combate incompleto');
+      return;
+    }
+
+    box.hidden = false;
+
+    el('cpuSetup').hidden = true;
+    el('cpuResume').hidden = true;
+    el('cpuResult').hidden = true;
+
+    const done = session.status!=='playing';
+
+    const mine = Number(session.current_turn)===1;
+
+    const header = node(
+      'div',null,'cpu-battle-header',box
+    );
+
+    node(
+      'strong',
+      '🎯 '+(
+        session.difficulty_name ||
+        levels[session.difficulty] ||
+        session.difficulty
+      ),
+      null,header
+    );
+
+    node(
+      'small',
+      '🏆 '+session.victory_reward+' monedas',
+      null,header
+    );
+
+    node(
+      'small',
+      'Ronda '+(game.round||1),
+      null,header
+    );
+
+    node(
+      'div',
+      done
+        ?'Combate terminado'
+        :mine
+          ?'⚔️ ¡Es tu turno!'
+          :'🤖 Turno de la CPU',
+      'cpu-battle-turn'+(mine&&!done?' mine':''),
+      box
+    );
+
+    const grid = node(
+      'div',null,'cpu-battle-grid',box
+    );
+
+    const enemyBox = fighter(opponent,false);
+
+    const myBox = fighter(player,true);
+
+    const ev = game.last_action;
+
+    grid.append(
+      enemyBox,
+      node('div',describe(ev),'cpu-event'),
+      myBox
+    );
+
+    if (ev) {
+      const key = session.match_id+':'+session.version;
+
+      if (key!==animatedEvent) {
+        animatedEvent = key;
+
+        const own = Number(ev.player)===1;
+
+        const actor = own?myBox:enemyBox;
+        const target = own?enemyBox:myBox;
+
+        if (ev.damage>0) {
+          actor.classList.add('cpu-attack');
+          target.classList.add('cpu-hit');
+        }
+
+        if (ev.healing>0) {
+          actor.classList.add('cpu-healing');
+        }
+
+        if (ev.action==='shield') {
+          actor.classList.add('cpu-defense');
+        }
+
+        if (ev.action==='boost') {
+          actor.classList.add('cpu-attack');
+        }
+      }
+    }
+
+    if (done) {
+      const result = node(
+        'div',null,'cpu-result-card',box
+      );
+
+      const title =
+        session.status==='abandoned'
+          ?'Partida abandonada'
+          :session.result==='win'
+            ?'🏆 ¡VICTORIA!'
+            :session.result==='draw'
+              ?'🤝 TABLAS'
+              :'Combate terminado';
+
+      node('h2',title,null,result);
+
+      node(
+        'p',
+        '🪙 Recompensa: +'+
+        Number(session.reward_granted||0)+' monedas',
+        null,result
+      );
+
+      const again = node(
+        'button','⚔️ Nuevo combate',null,result
+      );
+
+      again.type = 'button';
+      again.onclick = open;
+
+      const home = node(
+        'button','🏠 Menú principal',null,result
+      );
+
+      home.type = 'button';
+      home.onclick = () => window.show('home');
+
+    } else {
+      box.append(drawActions(player));
+
+      if (syncRequired) {
+        const retry = node(
+          'button',
+          '🔄 Recuperar partida',
+          null,box
+        );
+
+        retry.type = 'button';
+        retry.disabled = busy;
+        retry.onclick = open;
+
+      } else if (!mine && !busy) {
+        const retry = node(
+          'button',
+          '🤖 Continuar turno CPU',
+          null,box
+        );
+
+        retry.type = 'button';
+        retry.onclick = () => execute('cpu_turn');
+      }
+
+      const abandon = node(
+        'button',
+        '🏳️ Abandonar combate',
+        'cpu-abandon',
+        box
+      );
+
+      abandon.type = 'button';
+      abandon.disabled = busy || syncRequired;
+      abandon.onclick = abandonMatch;
+    }
+
+    const log = node(
+      'details',null,'cpu-battle-log',box
+    );
+
+    node(
+      'summary',
+      '📜 Registro de combate',
+      null,log
+    );
+
+    const history = Array.isArray(game.history)
+      ? game.history.slice(-6).reverse()
+      : [];
+
+    if (history.length) {
+      history.forEach(e =>
+        node('p',describe(e),null,log)
+      );
+    } else {
+      node('p',describe(ev),null,log);
+    }
+  }
+
+  function cancelCpuTurn() {
+    if (cpuTimer!==null) {
+      clearTimeout(cpuTimer);
+      cpuTimer = null;
+    }
+  }
+
+  function scheduleCpuTurn() {
+    cancelCpuTurn();
+
+    if (
+      !visible() || !ready || busy || loading ||
+      syncRequired || !session ||
+      session.status!=='playing' ||
+      Number(session.current_turn)!==2
+    ) return;
+
+    const id = session.match_id;
+    const version = session.version;
+
+    cpuTimer = setTimeout(() => {
+      cpuTimer = null;
+
+      if (
+        !visible() || busy || loading ||
+        syncRequired ||
+        session?.match_id!==id ||
+        session?.version!==version ||
+        session?.status!=='playing' ||
+        Number(session.current_turn)!==2
+      ) return;
+
+      execute('cpu_turn');
+
+    },900);
+  }
+
+  async function recoverMatch(id) {
+    const recovered = await recoverData();
+
+    const current = recovered.find(s =>
+      s.match_id===id &&
+      s.game_type==='pokemon'
+    );
+
+    if (current) {
+      session = current;
+      syncRequired = false;
+      return true;
+    }
+
+    const row = check(
+      await db.from('cpu_matches')
+        .select('*')
+        .eq('id',id)
+        .eq('player_id',uid)
+        .eq('game_type','pokemon')
+        .maybeSingle()
+    );
+
+    if (!row) return false;
 
     session = {
       ...session,
-      game_state: result.game_state,
-      current_turn: result.current_turn,
-      version: result.version,
-      status: result.status,
-      result: result.result,
-      winner_side: result.winner_side,
-      victory_reward: result.victory_reward,
-      reward_granted: result.reward_granted
+      ...row,
+      match_id:row.id,
+      difficulty:row.difficulty_id
     };
 
-    coins = Number(
-      result.coins ?? coins
-    );
+    syncRequired = false;
 
-    healUntil =
-      result.heal_available_at || null;
+    return true;
+  }
 
-    completed = true;
+  async function execute(action,target=null) {
+    if (
+      !visible() || !ready || busy || loading ||
+      syncRequired || !session ||
+      session.status!=='playing'
+    ) return;
 
-    drawWallet();
+    const player = session.game_state?.players?.['1'];
 
-    if (session.status === 'finished') {
+    if (!player) return;
 
-      status(
-        session.result === 'win'
-          ? '🏆 ¡Victoria! Recompensa: ' +
-            session.reward_granted +
-            ' monedas.'
-          : 'El combate ha terminado. Derrota.'
-      );
-
+    if (action==='cpu_turn') {
+      if (Number(session.current_turn)!==2) return;
     } else {
+      const reason = availability(player,action);
 
-      status(
-        Number(session.current_turn) === 1
-          ? '🟢 Es tu turno.'
-          : '🤖 Turno de la CPU.'
-      );
+      if (reason) {
+        status(reason);
+        return;
+      }
+
+      if (action==='switch') {
+        if (!reserves(player).some(
+          x => x.index===target
+        )) return;
+      } else {
+        target = null;
+      }
     }
 
-  } catch (error) {
+    cancelCpuTurn();
 
-    cpuSyncRequired = true;
+    busy = true;
 
-    console.error(
-      'Error de combate CPU:',
-      error
-    );
+    const id = session.match_id;
+    const version = session.version;
+
+    let completed = false;
+
+    drawBattle();
 
     status(
-      '⚠️ ' +
-      (error.message || 'Error de combate') +
-      '. Recuperando estado del servidor...'
+      action==='cpu_turn'
+        ?'🤖 La CPU está pensando…'
+        :'⚔️ Ejecutando movimiento…'
     );
 
     try {
-
-      const recovered = check(
-        await db.rpc('recover_cpu_sessions')
+      const r = check(
+        await db.rpc('pokemon_cpu_action',{
+          p_match_id:id,
+          p_action:action,
+          p_expected_version:version,
+          p_target:target
+        })
       );
 
-      if (!recovered?.success) {
-
-        throw new Error(
-          'No se pudo recuperar la partida.'
+      if (!r?.success) {
+        throw Error(
+          r?.message || r?.error ||
+          'Movimiento rechazado'
         );
       }
 
-      const current =
-        (recovered.sessions || [])
-          .find(item =>
-            item.match_id === matchId &&
-            item.game_type === 'pokemon' &&
-            item.status === 'playing'
-          );
+      session = {
+        ...session,
+        game_state:r.game_state,
+        current_turn:r.current_turn,
+        version:r.version,
+        status:r.status,
+        result:r.result,
+        winner_side:r.winner_side,
+        victory_reward:
+          r.victory_reward ?? session.victory_reward,
+        reward_granted:r.reward_granted
+      };
 
-      coins = Number(
-        recovered.coins ?? coins
-      );
-
-      healUntil =
-        recovered.heal_available_at || null;
+      coins = Number(r.coins ?? coins);
+      healUntil = r.heal_available_at || null;
 
       drawWallet();
 
-      if (current) {
+      completed = true;
 
-        session = current;
+      status(
+        session.status==='finished'
+          ?session.result==='win'
+            ?'🏆 ¡Victoria!'
+            :'Combate terminado'
+          :Number(session.current_turn)===1
+            ?'🟢 Es tu turno'
+            :'🤖 Turno de la CPU'
+      );
 
-        cpuSyncRequired = false;
+      if (navigator.vibrate) {
+        try { navigator.vibrate(50); } catch {}
+      }
 
-        status(
-          '🟢 Estado del combate recuperado.'
-        );
+    } catch (error) {
+      syncRequired = true;
 
-      } else {
+      status(
+        '⚠️ '+error.message+
+        '. Recuperando estado…'
+      );
 
-        status(
-          '⚠️ La partida ya no está activa. ' +
-          'Sal al menú y vuelve a entrar.'
+      try {
+        if (await recoverMatch(id)) {
+          status('Estado recuperado. Puedes continuar.');
+        } else {
+          status('No se encontró la partida.');
+        }
+      } catch (e) {
+        status('No se pudo sincronizar. Pulsa Recuperar partida.');
+      }
+
+    } finally {
+      busy = false;
+
+      if (visible()) {
+        drawBattle();
+
+        if (completed) scheduleCpuTurn();
+      }
+    }
+  }
+
+  async function abandonMatch() {
+    if (
+      busy || syncRequired || !session ||
+      session.status!=='playing'
+    ) return;
+
+    if (!confirm(
+      '¿Abandonar este combate? No recibirás recompensa.'
+    )) return;
+
+    cancelCpuTurn();
+
+    busy = true;
+
+    const id = session.match_id;
+
+    drawBattle();
+
+    try {
+      const r = check(
+        await db.rpc('abandon_cpu_match',{
+          p_match_id:id,
+          p_expected_version:session.version
+        })
+      );
+
+      if (r?.success===false) {
+        throw Error(
+          r.message || r.error ||
+          'No se pudo abandonar'
         );
       }
 
-    } catch (recoveryError) {
+      await recoverMatch(id);
 
-      console.error(
-        'Error de recuperación CPU:',
-        recoveryError
-      );
+      if (session.status==='playing') {
+        throw Error('No se confirmó el abandono');
+      }
 
-      status(
-        '⚠️ No se pudo sincronizar la partida. ' +
-        'Sal al menú y vuelve a entrar.'
-      );
-    }
+      status('Combate abandonado.');
 
-  } finally {
+    } catch (e) {
+      syncRequired = true;
 
-    busy = false;
+      try {
+        await recoverMatch(id);
+      } catch {}
 
-    if (visible() && session) {
+      status(e.message || 'Error al abandonar');
 
-      drawBattle();
+    } finally {
+      busy = false;
 
-      if (completed) {
-
+      if (visible()) {
+        drawBattle();
         scheduleCpuTurn();
       }
     }
   }
-}
 
-
-function cpuDrawActions(player) {
-
-  const box = cpuNode(
-    'div',
-    null,
-    'cpu-battle-actions'
-  );
-
-  const pokemon =
-    player.team?.[Number(player.active)];
-
-  const actions = [
-    ['normal', '⚔️ Ataque normal', '#2563eb'],
-    ['strong', '💥 Ataque fuerte', '#c2410c'],
-    ['elemental', '🔥 Ataque elemental', '#7e22ce'],
-    ['ultimate', '⚡ Ataque definitivo', '#854d0e'],
-    ['shield', '🛡️ Escudo', '#1e40af'],
-    ['boost', '💪 Potenciador', '#9333ea'],
-    ['heal', '💚 Curación', '#166534'],
-    ['switch', '🔄 Cambiar Pokémon', '#475569']
-  ];
-
-  for (const [action, label, color] of actions) {
-
-    const button = cpuNode(
-      'button',
-      label
-    );
-
-    button.type = 'button';
-
-    button.dataset.action = action;
-
-    const availability =
-      cpuActionAvailability(player, action);
-
-    button.disabled =
-      !availability.allowed ||
-      cpuSyncRequired;
-
-    button.style.background =
-      button.disabled
-        ? '#393451'
-        : color;
-
-    button.style.opacity =
-      button.disabled ? '0.65' : '1';
-
-    let detail = availability.reason;
-
-    if (cpuSyncRequired) {
-
-      detail = 'Sincronización requerida';
-
-    } else if (availability.allowed) {
-
-      switch (action) {
-
-        case 'normal':
-
-          detail =
-            'Daño base: ' +
-            pokemon.normal_damage;
-
-          break;
-
-        case 'strong':
-
-          detail =
-            'Daño base: ' +
-            pokemon.super_damage;
-
-          break;
-
-        case 'elemental':
-
-          detail = 'Ataque de elemento';
-
-          break;
-
-        case 'ultimate':
-
-          detail = 'Consume 100 de energía';
-
-          break;
-
-        case 'shield':
-
-          detail = 'Activa protección';
-
-          break;
-
-        case 'boost':
-
-          detail = 'Potencia el ataque';
-
-          break;
-
-        case 'heal':
-
-          detail = 'Recupera hasta 25% de PV';
-
-          break;
-
-        case 'switch':
-
-          detail =
-            cpuAvailableReserves(player).length +
-            ' reservas disponibles';
-
-          break;
-      }
-    }
-    
-function drawCpuSwitchOptions(player, box) {
-
-  if (
-    !cpuActionAvailability(player, 'switch').allowed ||
-    cpuSyncRequired
-  ) {
-
-    return;
-  }
-
-  box.replaceChildren();
-
-  const title = cpuNode(
-    'strong',
-    '🔄 Selecciona tu próximo Pokémon'
-  );
-
-  title.style.gridColumn = '1 / -1';
-
-  box.append(title);
-
-  const reserves =
-    cpuAvailableReserves(player);
-
-  reserves.forEach(({ pokemon, index }) => {
-
-    const button = cpuNode('button');
-
-    button.type = 'button';
-
-    button.style.background = '#34296a';
-
-    const image =
-      cpuPokemonImage(pokemon);
-
-    image.style.width = '85px';
-    image.style.maxWidth = '100%';
-
-    button.append(
-      image,
-      cpuNode('div', pokemon.name),
-      cpuNode(
-        'small',
-        pokemon.hp + ' / ' +
-        pokemon.max_hp + ' PV'
-      )
-    );
-
-    button.onclick = () => {
-
-      executeCpuAction(
-        'switch',
-        index
-      );
-    };
-
-    box.append(button);
-  });
-
-  const cancel = cpuNode(
-    'button',
-    'Cancelar'
-  );
-
-  cancel.type = 'button';
-
-  cancel.style.gridColumn = '1 / -1';
-
-  cancel.style.background = '#475569';
-
-  cancel.onclick = () => {
-
-    drawBattle();
-  };
-
-  box.append(cancel);
-}
-
-
-    if (detail) {
-
-      button.append(
-        cpuNode('small', detail)
-      );
-    }
-
-    button.onclick = () => {
-
-      if (action === 'switch') {
-
-        drawCpuSwitchOptions(player, box);
-
-      } else {
-
-        executeCpuAction(action);
-      }
-    };
-
-    box.append(button);
-  }
-
-  return box;
-}
-
-
-function cpuDescribeEvent(event) {
-
-  if (!event) {
-
-    return '¡Comienza la batalla contra CPU!';
-  }
-
-  const actor =
-    Number(event.player) === 1
-      ? '👤 Tú'
-      : '🤖 CPU';
-
-  const pokemon =
-    event.pokemon || 'Pokémon';
-
-  const target =
-    event.target || 'Rival';
-
-  const damage =
-    Number(event.damage || 0);
-
-  const healing =
-    Number(event.healing || 0);
-
-  const labels = {
-    normal: 'Ataque normal',
-    strong: 'Ataque fuerte',
-    elemental: 'Ataque elemental',
-    ultimate: 'Ataque definitivo'
-  };
-
-  let message = '';
-
-  switch (event.action) {
-
-    case 'normal':
-    case 'strong':
-    case 'elemental':
-    case 'ultimate':
-
-      message =
-        actor + ': ' +
-        pokemon + ' utilizó ' +
-        labels[event.action] + '.';
-
-      if (event.missed) {
-
-        message += ' ¡El ataque falló!';
-
-      } else {
-
-        message +=
-          ' ' + target +
-          ' recibió ' + damage +
-          ' puntos de daño.';
-
-        if (event.critical) {
-          message += ' ¡Golpe crítico!';
-        }
-
-        if (Number(event.multiplier) > 1) {
-          message += ' ¡Muy efectivo!';
-        }
-
-        if (Number(event.multiplier) < 1) {
-          message += ' Poco efectivo.';
-        }
-      }
-
-      break;
-
-    case 'shield':
-
-      message =
-        actor + ': ' +
-        pokemon + ' activó su escudo.';
-
-      break;
-
-    case 'boost':
-
-      message =
-        actor + ': ' +
-        pokemon + ' activó su potenciador.';
-
-      break;
-
-    case 'heal':
-
-      message =
-        actor + ': ' +
-        pokemon + ' recuperó ' +
-        healing + ' PV.';
-
-      break;
-
-    case 'switch':
-
-      message =
-        actor + ': retiró a ' +
-        pokemon + ' y cambió de Pokémon.';
-
-      break;
-
-    case 'status_skip':
-
-      message =
-        actor + ': ' +
-        pokemon +
-        ' perdió su turno por un efecto de estado.';
-
-      break;
-
-    default:
-
-      message =
-        actor + ': movimiento registrado.';
-  }
-
-  return message;
-}
-
-function drawBattle() {
-
-  const box = el('cpuBattle');
-
-  box.replaceChildren();
-
-  if (!session || !session.game_state) {
-
-    box.hidden = true;
-
-    return;
-  }
-
-  const game = session.game_state;
-
-  const player = game.players?.['1'];
-
-  const opponent = game.players?.['2'];
-
-  if (!player || !opponent) {
-
-    box.hidden = true;
-
-    status('Estado de combate incompleto.');
-
-    return;
-  }
-
-  box.hidden = false;
-
-  el('cpuSetup').hidden = true;
-  el('cpuResume').hidden = true;
-  el('cpuResult').hidden = true;
-
-  const header = cpuNode(
-    'div',
-    null,
-    'cpu-battle-header'
-  );
-
-  header.append(
-    cpuNode(
-      'strong',
-      '🎯 ' +
-      (
-        session.difficulty_name ||
-        session.difficulty
-      )
-    ),
-    cpuNode(
-      'small',
-      '🏆 Premio: ' +
-      session.victory_reward +
-      ' monedas'
-    ),
-    cpuNode(
-      'small',
-      'Ronda: ' + (game.round ?? 1)
-    )
-  );
-
-  const playerTurn =
-    Number(session.current_turn) === 1;
-
-  const turn = cpuNode(
-    'div',
-    playerTurn
-      ? '⚔️ ¡Es tu turno!'
-      : '🤖 Turno de la CPU',
-    'cpu-battle-turn'
-  );
-
-  turn.style.color =
-    playerTurn ? '#86efac' : '#facc15';
-
-  const fighters = cpuNode(
-    'div',
-    null,
-    'cpu-battle-grid'
-  );
-
-  fighters.append(
-    cpuDrawFighter(player, 'TU EQUIPO'),
-    cpuDrawFighter(opponent, 'RIVAL CPU')
-  );
-
-  const log = cpuNode(
-    'div',
-    null,
-    'cpu-battle-log'
-  );
-
-  log.append(
-  cpuNode(
-    'strong',
-    '📜 Registro de combate'
-  )
-);
-
-const history = Array.isArray(game.history)
-  ? game.history.slice(-6).reverse()
-  : [];
-
-if (history.length) {
-
-  history.forEach(event => {
-
-    log.append(
-      cpuNode(
-        'p',
-        cpuDescribeEvent(event)
-      )
-    );
-  });
-
-} else {
-
-  log.append(
-    cpuNode(
-      'p',
-      cpuDescribeEvent(game.last_action)
-    )
-  );
-}
-
-  const abandon = cpuNode(
-    'button',
-    '🏳️ Abandonar combate',
-    'cpu-abandon'
-  );
-
-  abandon.type = 'button';
-
-  // Se conectará a su RPC posteriormente.
-  abandon.disabled = true;
-
-  box.append(
-    header,
-    turn,
-    fighters,
-    cpuDrawActions(player),
-    log,
-    abandon
-  );
-}
-function drawResume() {
-
-  el('cpuResume').replaceChildren();
-
-  el('cpuResume').hidden = true;
-
-  el('cpuSetup').hidden = !!session;
-
-  if (session) {
-
-    drawBattle();
-
-  } else {
-
-    el('cpuBattle').hidden = true;
-
-    el('cpuResult').hidden = true;
-
-  }
-}
-  
   async function open() {
-
     if (loading || busy) return;
+
+    cancelCpuTurn();
 
     loading = true;
     ready = false;
-cancelCpuTurn();
-cpuSyncRequired = false;
+    syncRequired = false;
+
+    session = null;
     uid = null;
     profile = null;
-    session = null;
+    animatedEvent = '';
 
     coins = 0;
     healUntil = null;
-
     difficulty = null;
-    selected = [null, null, null];
-
-    difficulties = [];
-    collection = [];
-
-    el('cpuStart').disabled = true;
+    selected = [null,null,null];
 
     el('cpuSetup').hidden = true;
-    el('cpuResume').hidden = true;
     el('cpuBattle').hidden = true;
+    el('cpuResume').hidden = true;
     el('cpuResult').hidden = true;
+    el('cpuStart').disabled = true;
 
     el('cpuWallet').textContent =
       '🪙 Monedas online: —';
@@ -1922,17 +1652,12 @@ cpuSyncRequired = false;
     status('Conectando con Supabase…');
 
     try {
-
       const connected = await connect();
 
       drawAccount(connected);
 
       if (!connected) {
-
-        status(
-          'Crea o recupera tu perfil online primero.'
-        );
-
+        status('Crea o recupera tu perfil online primero.');
         return;
       }
 
@@ -1942,198 +1667,127 @@ cpuSyncRequired = false;
 
       drawWallet();
 
-      drawResume();
-
-      if (session) {
-
-        status(
-          '🟢 Partida CPU recuperada.'
-        );
-
-      } else if (collection.length < 3) {
-
-        status(
-          'Necesitas al menos tres Pokémon diferentes.'
-        );
-
-      } else {
-
-        status(
-          '🟢 Selecciona dificultad y equipo.'
-        );
-      }
-
-    } catch (e) {
-
-      ready = false;
-
       status(
-        e.message ||
-        'Error al cargar el modo CPU'
+        session
+          ?'🟢 Partida recuperada'
+          :collection.length<3
+            ?'Necesitas tres Pokémon diferentes'
+            :'Selecciona dificultad y equipo'
       );
 
-      console.error('Arena CPU:', e);
+    } catch (e) {
+      ready = false;
+      status(e.message || 'Error al cargar CPU');
 
-    } 
-finally {
+    } finally {
+      loading = false;
 
-  loading = false;
+      if (ready) {
+        el('cpuSetup').hidden = !!session;
 
-  if (ready) {
+        drawDifficulties();
+        drawTeam();
+
+        if (session && visible()) {
+          drawBattle();
+          scheduleCpuTurn();
+        }
+      }
+
+      validateTeam();
+    }
+  }
+
+  async function start() {
+    if (!validateTeam()) return;
+
+    busy = true;
 
     drawDifficulties();
     drawTeam();
+    validateTeam();
 
-    if (session && visible()) {
+    status('⚔️ Creando combate…');
 
-      drawBattle();
-
-      scheduleCpuTurn();
-    }
-  }
-
-  validateTeam();
-}
-  
-async function startCpuMatch() {
-
-  if (!validateTeam()) return;
-
-  busy = true;
-
-  el('cpuStart').disabled = true;
-
-  drawDifficulties();
-  drawTeam();
-
-  status('⚔️ Creando partida contra CPU…');
-
-  try {
-
-    const result = check(
-      await db.rpc(
-        'start_pokemon_cpu_match',
-        {
-          p_difficulty: difficulty,
-          p_pokemon_1: selected[0],
-          p_pokemon_2: selected[1],
-          p_pokemon_3: selected[2]
-        }
-      )
-    );
-
-    if (!result?.success) {
-
-      throw Error(
-        result?.message ||
-        result?.error ||
-        'No se pudo iniciar la partida CPU'
+    try {
+      const r = check(
+        await db.rpc('start_pokemon_cpu_match',{
+          p_difficulty:difficulty,
+          p_pokemon_1:selected[0],
+          p_pokemon_2:selected[1],
+          p_pokemon_3:selected[2]
+        })
       );
-    }
 
-    session = {
-
-      match_id: result.match_id,
-
-      game_type: 'pokemon',
-
-      difficulty: result.difficulty,
-
-      difficulty_name:
-        difficulties.find(
-          d => d.id === result.difficulty
-        )?.name || result.difficulty,
-
-      status: 'playing',
-
-      current_turn: result.current_turn,
-
-      version: result.version,
-
-      game_state: result.game_state,
-
-      victory_reward: result.victory_reward,
-
-      reward_granted: 0
-
-    };
-
-    drawResume();
-
-    status(
-      result.recovered
-        ? '🟢 Partida existente recuperada.'
-        : '🟢 Partida CPU creada correctamente.'
-    );
-
-    console.log(
-      'Partida CPU:',
-      session
-    );
-
-  } catch (e) {
-
-    status(
-      e.message ||
-      'Error al iniciar el combate CPU'
-    );
-
-    console.error(
-      'Error al iniciar CPU:',
-      e
-    );
-
-  } 
-  finally {
-
-  busy = false;
-
-  drawDifficulties();
-  drawTeam();
-  validateTeam();
-
-  if (session && visible()) {
-
-    drawBattle();
-
-    scheduleCpuTurn();
-  }
-  }
-
-el('cpuStart').onclick = startCpuMatch;
-
-
-  document.addEventListener(
-  'arena:section-change',
-  event => {
-
-    if (event.detail?.section === 'cpu') {
-
-      if (busy && session) {
-
-        drawBattle();
-
-      } else {
-
-        open();
+      if (!r?.success) {
+        throw Error(
+          r?.message || r?.error ||
+          'No se pudo iniciar'
+        );
       }
 
-    } else {
+      session = {
+        match_id:r.match_id,
+        game_type:'pokemon',
+        difficulty:r.difficulty,
+        difficulty_name:
+          difficulties.find(
+            d => d.id===r.difficulty
+          )?.name || r.difficulty,
+        status:'playing',
+        current_turn:r.current_turn,
+        version:r.version,
+        game_state:r.game_state,
+        victory_reward:r.victory_reward,
+        reward_granted:0
+      };
 
-      cancelCpuTurn();
+      animatedEvent = '';
+
+      status(
+        r.recovered
+          ?'Partida recuperada'
+          :'¡Comienza el combate!'
+      );
+
+    } catch (e) {
+      status(e.message || 'Error al iniciar');
+
+    } finally {
+      busy = false;
+
+      drawDifficulties();
+      drawTeam();
+      validateTeam();
+
+      if (session && visible()) {
+        drawBattle();
+        scheduleCpuTurn();
+      }
     }
   }
-);
-    event => {
 
-      if (
-        event.detail?.section === 'cpu'
-      ) {
-        open();
+  el('cpuStart').onclick = start;
+
+  document.addEventListener(
+    'arena:section-change',
+    event => {
+      if (event.detail?.section==='cpu') {
+        if (busy && session) {
+          drawBattle();
+        } else {
+          open();
+        }
+      } else {
+        cancelCpuTurn();
       }
     }
   );
 
+  setInterval(tickHeal,250);
+
   if (visible()) open();
+
+  console.info('Arena Pokémon CPU V6 cargado');
 
 })();
