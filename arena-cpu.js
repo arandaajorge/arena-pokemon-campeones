@@ -947,6 +947,140 @@ function cpuDrawFighter(player, label) {
   return card;
 }
 
+function cpuHealSeconds(player) {
+
+  const dates = [
+    healUntil,
+    player?.heal_available_at
+  ]
+    .filter(Boolean)
+    .map(value => new Date(value).getTime())
+    .filter(Number.isFinite);
+
+  if (!dates.length) return 0;
+
+  return Math.max(
+    0,
+    Math.ceil(
+      (Math.max(...dates) - Date.now()) / 1000
+    )
+  );
+}
+
+function cpuAvailableReserves(player) {
+
+  return (player.team || [])
+    .map((pokemon, index) => ({
+      pokemon,
+      index
+    }))
+    .filter(item =>
+      item.index !== Number(player.active) &&
+      Number(item.pokemon.hp) > 0
+    );
+}
+
+function cpuActionAvailability(player, action) {
+
+  if (!session || session.status !== 'playing') {
+
+    return {
+      allowed: false,
+      reason: 'Combate finalizado'
+    };
+  }
+
+  if (busy || loading) {
+
+    return {
+      allowed: false,
+      reason: 'Procesando...'
+    };
+  }
+
+  if (Number(session.current_turn) !== 1) {
+
+    return {
+      allowed: false,
+      reason: 'Turno de la CPU'
+    };
+  }
+
+  const pokemon =
+    player.team?.[Number(player.active)];
+
+  if (!pokemon || Number(pokemon.hp) <= 0) {
+
+    return {
+      allowed: false,
+      reason: 'Pokémon no disponible'
+    };
+  }
+
+  const cooldown = Number(
+    pokemon.cooldowns?.[action] || 0
+  );
+
+  if (cooldown > 0) {
+
+    return {
+      allowed: false,
+      reason: 'Recarga: ' + cooldown + ' turnos'
+    };
+  }
+
+  if (
+    action === 'ultimate' &&
+    Number(player.energy || 0) < 100
+  ) {
+
+    return {
+      allowed: false,
+      reason: 'Requiere 100 de energía'
+    };
+  }
+
+  if (action === 'heal') {
+
+    if (
+      Number(pokemon.hp) >=
+      Number(pokemon.max_hp)
+    ) {
+
+      return {
+        allowed: false,
+        reason: 'Vida completa'
+      };
+    }
+
+    const seconds = cpuHealSeconds(player);
+
+    if (seconds > 0) {
+
+      return {
+        allowed: false,
+        reason: 'Disponible en ' + seconds + ' s'
+      };
+    }
+  }
+
+  if (
+    action === 'switch' &&
+    cpuAvailableReserves(player).length === 0
+  ) {
+
+    return {
+      allowed: false,
+      reason: 'Sin reservas disponibles'
+    };
+  }
+
+  return {
+    allowed: true,
+    reason: ''
+  };
+}
+
 function cpuDrawActions(player) {
 
   const box = cpuNode(
