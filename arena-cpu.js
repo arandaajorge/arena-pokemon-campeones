@@ -1378,6 +1378,7 @@ async function executeCpuAction(
   }
 }
 
+
 function cpuDrawActions(player) {
 
   const box = cpuNode(
@@ -1388,9 +1389,6 @@ function cpuDrawActions(player) {
 
   const pokemon =
     player.team?.[Number(player.active)];
-
-  const cooldowns =
-    pokemon?.cooldowns || {};
 
   const actions = [
     ['normal', '⚔️ Ataque normal', '#2563eb'],
@@ -1414,36 +1412,85 @@ function cpuDrawActions(player) {
 
     button.dataset.action = action;
 
-    button.style.background = color;
+    const availability =
+      cpuActionAvailability(player, action);
 
-    // Se habilitarán en la siguiente etapa.
-    button.disabled = true;
+    button.disabled =
+      !availability.allowed ||
+      cpuSyncRequired;
 
-    let detail = '';
+    button.style.background =
+      button.disabled
+        ? '#393451'
+        : color;
 
-    if (action === 'normal') {
+    button.style.opacity =
+      button.disabled ? '0.65' : '1';
 
-      detail =
-        'Daño base: ' +
-        (pokemon?.normal_damage ?? 0);
+    let detail = availability.reason;
 
-    } else if (action === 'strong') {
+    if (cpuSyncRequired) {
 
-      detail =
-        'Daño base: ' +
-        (pokemon?.super_damage ?? 0);
+      detail = 'Sincronización requerida';
 
-    }
+    } else if (availability.allowed) {
 
-    const cooldown =
-      Number(cooldowns[action] || 0);
+      switch (action) {
 
-    if (cooldown > 0) {
+        case 'normal':
 
-      detail +=
-        (detail ? ' · ' : '') +
-        'Recarga: ' + cooldown;
+          detail =
+            'Daño base: ' +
+            pokemon.normal_damage;
 
+          break;
+
+        case 'strong':
+
+          detail =
+            'Daño base: ' +
+            pokemon.super_damage;
+
+          break;
+
+        case 'elemental':
+
+          detail = 'Ataque de elemento';
+
+          break;
+
+        case 'ultimate':
+
+          detail = 'Consume 100 de energía';
+
+          break;
+
+        case 'shield':
+
+          detail = 'Activa protección';
+
+          break;
+
+        case 'boost':
+
+          detail = 'Potencia el ataque';
+
+          break;
+
+        case 'heal':
+
+          detail = 'Recupera hasta 25% de PV';
+
+          break;
+
+        case 'switch':
+
+          detail =
+            cpuAvailableReserves(player).length +
+            ' reservas disponibles';
+
+          break;
+      }
     }
 
     if (detail) {
@@ -1453,11 +1500,24 @@ function cpuDrawActions(player) {
       );
     }
 
+    button.onclick = () => {
+
+      if (action === 'switch') {
+
+        drawCpuSwitchOptions(player, box);
+
+      } else {
+
+        executeCpuAction(action);
+      }
+    };
+
     box.append(button);
   }
 
   return box;
 }
+
 
 function cpuDescribeEvent(event) {
 
