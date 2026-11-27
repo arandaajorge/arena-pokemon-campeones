@@ -1091,6 +1091,293 @@ function cpuActionAvailability(player, action) {
   };
 }
 
+function cancelCpuTurn() {
+
+  if (cpuTurnTimer !== null) {
+
+    clearTimeout(cpuTurnTimer);
+
+    cpuTurnTimer = null;
+  }
+}
+
+function scheduleCpuTurn() {
+
+  cancelCpuTurn();
+
+  if (
+    !visible() ||
+    !ready ||
+    busy ||
+    loading ||
+    cpuSyncRequired ||
+    !session ||
+    session.status !== 'playing' ||
+    Number(session.current_turn) !== 2
+  ) {
+
+    return;
+  }
+
+  const matchId = session.match_id;
+  const version = session.version;
+
+  cpuTurnTimer = setTimeout(() => {
+
+    cpuTurnTimer = null;
+
+    if (
+      !visible() ||
+      busy ||
+      loading ||
+      cpuSyncRequired ||
+      !session ||
+      session.match_id !== matchId ||
+      session.version !== version ||
+      session.status !== 'playing' ||
+      Number(session.current_turn) !== 2
+    ) {
+
+      return;
+    }
+
+    executeCpuAction('cpu_turn');
+
+  }, 900);
+}
+
+async function executeCpuAction(
+  action,
+  target = null
+) {
+
+  if (
+    !visible() ||
+    !ready ||
+    busy ||
+    loading ||
+    cpuSyncRequired ||
+    !session ||
+    session.status !== 'playing'
+  ) {
+
+    return;
+  }
+
+  const player =
+    session.game_state?.players?.['1'];
+
+  if (!player) return;
+
+  const turn =
+    Number(session.current_turn);
+
+  if (action === 'cpu_turn') {
+
+    if (turn !== 2) return;
+
+  } else {
+
+    if (turn !== 1) return;
+
+    const availability =
+      cpuActionAvailability(player, action);
+
+    if (!availability.allowed) {
+
+      status(availability.reason);
+
+      return;
+    }
+
+    if (action === 'switch') {
+
+      const validTarget =
+        cpuAvailableReserves(player)
+          .some(item => item.index === target);
+
+      if (!validTarget) return;
+
+    } else {
+
+      target = null;
+    }
+  }
+
+  cancelCpuTurn();
+
+  busy = true;
+
+  const matchId = session.match_id;
+  const expectedVersion = session.version;
+
+  let completed = false;
+
+  drawBattle();
+
+  status(
+    action === 'cpu_turn'
+      ? '🤖 La CPU está pensando...'
+      : '⚔️ Ejecutando movimiento...'
+  );
+
+  try {
+
+    const result = check(
+      await db.rpc(
+        'pokemon_cpu_action',
+        {
+          p_match_id: matchId,
+          p_action: action,
+          p_expected_version: expectedVersion,
+          p_target: target
+        }
+      )
+    );
+
+    if (!result?.success) {
+
+      throw new Error(
+        result?.message ||
+        result?.error ||
+        'No se pudo ejecutar el movimiento.'
+      );
+    }
+
+    session = {
+      ...session,
+      game_state: result.game_state,
+      current_turn: result.current_turn,
+      version: result.version,
+      status: result.status,
+      result: result.result,
+      winner_side: result.winner_side,
+      victory_reward: result.victory_reward,
+      reward_granted: result.reward_granted
+    };
+
+    coins = Number(
+      result.coins ?? coins
+    );
+
+    healUntil =
+      result.heal_available_at || null;
+
+    completed = true;
+
+    drawWallet();
+
+    if (session.status === 'finished') {
+
+      status(
+        session.result === 'win'
+          ? '🏆 ¡Victoria! Recompensa: ' +
+            session.reward_granted +
+            ' monedas.'
+          : 'El combate ha terminado. Derrota.'
+      );
+
+    } else {
+
+      status(
+        Number(session.current_turn) === 1
+          ? '🟢 Es tu turno.'
+          : '🤖 Turno de la CPU.'
+      );
+    }
+
+  } catch (error) {
+
+    cpuSyncRequired = true;
+
+    console.error(
+      'Error de combate CPU:',
+      error
+    );
+
+    status(
+      '⚠️ ' +
+      (error.message || 'Error de combate') +
+      '. Recuperando estado del servidor...'
+    );
+
+    try {
+
+      const recovered = check(
+        await db.rpc('recover_cpu_sessions')
+      );
+
+      if (!recovered?.success) {
+
+        throw new Error(
+          'No se pudo recuperar la partida.'
+        );
+      }
+
+      const current =
+        (recovered.sessions || [])
+          .find(item =>
+            item.match_id === matchId &&
+            item.game_type === 'pokemon' &&
+            item.status === 'playing'
+          );
+
+      coins = Number(
+        recovered.coins ?? coins
+      );
+
+      healUntil =
+        recovered.heal_available_at || null;
+
+      drawWallet();
+
+      if (current) {
+
+        session = current;
+
+        cpuSyncRequired = false;
+
+        status(
+          '🟢 Estado del combate recuperado.'
+        );
+
+      } else {
+
+        status(
+          '⚠️ La partida ya no está activa. ' +
+          'Sal al menú y vuelve a entrar.'
+        );
+      }
+
+    } catch (recoveryError) {
+
+      console.error(
+        'Error de recuperación CPU:',
+        recoveryError
+      );
+
+      status(
+        '⚠️ No se pudo sincronizar la partida. ' +
+        'Sal al menú y vuelve a entrar.'
+      );
+    }
+
+  } finally {
+
+    busy = false;
+
+    if (visible() && session) {
+
+      drawBattle();
+
+      if (completed) {
+
+        scheduleCpuTurn();
+      }
+    }
+  }
+}
+
 function cpuDrawActions(player) {
 
   const box = cpuNode(
