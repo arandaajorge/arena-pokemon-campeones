@@ -2083,17 +2083,22 @@ async function startCpuMatch() {
       e
     );
 
-  } finally {
+  } 
+  finally {
 
-    busy = false;
+  busy = false;
 
-    drawDifficulties();
+  drawDifficulties();
+  drawTeam();
+  validateTeam();
 
-    drawTeam();
+  if (session && visible()) {
 
-    validateTeam();
+    drawBattle();
+
+    scheduleCpuTurn();
   }
-}
+  }
 
 el('cpuStart').onclick = startCpuMatch;
 
