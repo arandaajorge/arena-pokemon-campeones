@@ -21,7 +21,8 @@
   let loading = false;
   let busy = false;
   let ready = false;
-
+let cpuTurnTimer = null;
+let cpuSyncRequired = false;
   const check = r => {
     if (r.error) throw r.error;
     return r.data;
