@@ -1,0 +1,174 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnóstico de ajedrez</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body {
+  background: #101827;
+  color: white;
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+button {
+  width: 100%;
+  padding: 16px;
+  background: #16a34a;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  margin: 10px 0;
+}
+pre {
+  background: #202c40;
+  padding: 16px;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+</style>
+</head>
+
+<body>
+
+<h2>🧸 Ajedrez de campeones 🦫</h2>
+
+<p>Diagnóstico temporal del servidor</p>
+
+<button onclick="probarSesion()">
+  1. Comprobar sesión
+</button>
+
+<button onclick="probarMotor()">
+  2. Comprobar motor autenticado
+</button>
+
+<pre id="resultado">Esperando prueba...</pre>
+
+<script>
+
+const db = supabase.createClient(
+  "https://bwupxxeeaewdstjzmwob.supabase.co",
+  "sb_publishable_oeSBm8VNRI5Upna4skkHKg_JOB5rbDU"
+);
+
+function mostrar(data) {
+  document.getElementById("resultado").textContent =
+    JSON.stringify(data, null, 2);
+}
+
+async function probarSesion() {
+
+  try {
+
+    const { data, error } =
+      await db.auth.getSession();
+
+    if (error || !data.session) {
+      mostrar({
+        success: false,
+        error: "No existe una sesión activa"
+      });
+      return;
+    }
+
+    const usuario = await db.auth.getUser();
+
+    if (usuario.error || !usuario.data.user) {
+      mostrar({
+        success: false,
+        error: "Sesión no válida"
+      });
+      return;
+    }
+
+    const perfil = await db
+      .from("players")
+      .select("nickname")
+      .eq("id", usuario.data.user.id)
+      .single();
+
+    mostrar({
+      success: true,
+      sesion_valida: true,
+      jugador: perfil.data?.nickname || "Sin perfil",
+      perfil_encontrado: !perfil.error,
+      usuario_anonimo: usuario.data.user.is_anonymous
+    });
+
+  } catch (error) {
+
+    mostrar({
+      success: false,
+      error: error.message
+    });
+
+  }
+
+}
+
+async function probarMotor() {
+
+  try {
+
+    const { data, error } =
+      await db.auth.getSession();
+
+    if (error || !data.session) {
+      mostrar({
+        success: false,
+        error: "No existe una sesión activa"
+      });
+      return;
+    }
+
+    const response = await fetch(
+      "https://bwupxxeeaewdstjzmwob.supabase.co/functions/v1/chess-engine",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization":
+            "Bearer " + data.session.access_token,
+          "apikey":
+            "sb_publishable_oeSBm8VNRI5Upna4skkHKg_JOB5rbDU"
+        },
+        body: JSON.stringify({
+          action: "move",
+          match_id:
+            "00000000-0000-0000-0000-000000000000",
+          expected_version: 0,
+          from: "e2",
+          to: "e4"
+        })
+      }
+    );
+
+    const resultado = await response.json();
+
+    mostrar({
+      http_status: response.status,
+      respuesta: resultado
+    });
+
+  } catch (error) {
+
+    mostrar({
+      success: false,
+      error: error.message
+    });
+
+  }
+
+}
+
+</script>
+
+</body>
+</html>
