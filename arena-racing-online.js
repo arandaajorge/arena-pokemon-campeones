@@ -389,6 +389,11 @@ function update(detail){
     frame=0;
     raceSpeed=0;
     setAccelerating(false);
+    rivalSpeed=0;
+lastSpeedSent=0;
+
+panel.querySelector('#onlineRivalSpeed').textContent=
+  'Rival: 0 km/h';
   }
 
   number=Number(detail.player_number)||1;
