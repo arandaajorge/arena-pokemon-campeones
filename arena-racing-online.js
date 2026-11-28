@@ -107,17 +107,15 @@ function updateRaceSpeed(time){
     lastSpeedTime=0;
   }
 
+  
   speedFrame=requestAnimationFrame(updateRaceSpeed);
-}
-
-speedFrame=requestAnimationFrame(updateRaceSpeed);
-
 }
 
 speedFrame=requestAnimationFrame(updateRaceSpeed);
 
 let raceChannel=null;
 let connectedRoom=null;
+
 
 async function connectRaceRealtime(){
   if(!roomId || !number)return;
