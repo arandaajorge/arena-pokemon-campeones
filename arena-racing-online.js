@@ -286,7 +286,7 @@ function update(detail){
     names[0]+' 🆚 '+names[1];
 
   panel.hidden=false;
-
+connectRaceRealtime();
   if(!animation)draw();
 }
 
