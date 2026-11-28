@@ -77,6 +77,29 @@ const back=button(
 
 roomBox.append(back);
 
+// Preparación exclusiva de Turbo Racing Online.
+// No modifica las carreras individuales ni otras modalidades.
+const racingReadyPanel=node('div','');
+racingReadyPanel.id='racingReadyPanel';
+racingReadyPanel.style.margin='16px 0';
+racingReadyPanel.hidden=true;
+
+const racingReadyInfo=node('p','');
+const racingReadyButton=button('✅ Estoy listo',()=>run(async()=>{
+  if(!selected||!uid)throw Error('Abre primero una sala de carreras');
+  const roomId=selected;
+  const nextReady=racingReadyButton.dataset.ready!=='true';
+  check(await db.rpc('set_racing_ready',{
+    p_room_id:roomId,
+    p_ready:nextReady
+  }));
+  status(nextReady?'Preparación guardada.':'Ya no estás preparado.');
+  await refresh();
+}));
+
+racingReadyPanel.append(racingReadyInfo,racingReadyButton);
+roomBox.append(racingReadyPanel);
+
 async function connect(create){
 
   if(!window.supabase)
@@ -131,7 +154,8 @@ async function run(fn){
     el('onlineJoin'),
     el('onlineLeave'),
     recover,
-    back
+    back,
+    racingReadyButton
   ])b.disabled=true;
 
   try{
@@ -151,6 +175,8 @@ async function run(fn){
 
     el('onlineLeave').disabled=
       roomBox.dataset.playing==='true';
+    racingReadyButton.disabled=
+      busy||racingReadyPanel.hidden||racingReadyButton.dataset.member!=='true';
   }
 }
 
@@ -271,13 +297,41 @@ async function refresh(){
 
     box.replaceChildren();
 
+    // recover_game_session no garantiza que incluya el campo ready.
+    // Se consulta room_players con la política SELECT de miembros.
+    let racingPlayers=[];
+    if(s.game_type==='racing'){
+      racingPlayers=check(await db.from('room_players')
+        .select('player_id,player_number,ready')
+        .eq('room_id',s.room_id))||[];
+    }
+    const readyByNumber=new Map(
+      racingPlayers.map(p=>[Number(p.player_number),p.ready===true])
+    );
+
     for(const p of s.players||[]){
 
       box.append(
         node('p',
-          `Jugador ${p.player_number??''}: ${p.nickname||'Jugador'}`
+          `Jugador ${p.player_number??''}: ${p.nickname||'Jugador'}`+
+          (s.game_type==='racing'
+            ?(readyByNumber.get(Number(p.player_number))?' · ✅ Listo':' · ⏳ No listo')
+            :'')
         )
       );
+    }
+
+    racingReadyPanel.hidden=!(s.game_type==='racing'&&s.room_status==='waiting');
+    if(!racingReadyPanel.hidden){
+      const me=racingPlayers.find(p=>p.player_id===uid);
+      const myReady=me?.ready===true;
+      const readyCount=racingPlayers.filter(p=>p.ready===true).length;
+      racingReadyInfo.textContent=`Preparados: ${readyCount}/2`+
+        (readyCount===2?' · Ambos listos. Próximamente: iniciar carrera.':'');
+      racingReadyButton.dataset.ready=String(myReady);
+      racingReadyButton.dataset.member=String(!!me);
+      racingReadyButton.textContent=myReady?'↩️ Cancelar listo':'✅ Estoy listo';
+      racingReadyButton.disabled=busy||!me;
     }
 
     if(s.match_id){
@@ -288,9 +342,9 @@ async function refresh(){
           'Partida guardada · versión '+s.version
         ),
 
-        node('p',
+        ...(s.game_type==='racing'?[]:[node('p',
           'Turno: jugador '+s.current_turn
-        )
+        )])
 
       );
 
@@ -316,6 +370,7 @@ async function refresh(){
       ?'Partida recuperada. El tablero jugable aún está pendiente.'
       :s.room_status==='finished'
       ?'Resultado guardado.'
+      :s.game_type==='racing'?'Sala sincronizada. Marca Estoy listo para prepararte.'
       :'Sala sincronizada.'
     );
 
