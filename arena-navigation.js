@@ -16,12 +16,15 @@
     cpu: 'Contra CPU',
     setup: 'Preparar batalla',
     battle: 'Combate',
-    shop: 'Tienda',
-    packs: 'Sobres',
+    shop: 'Tienda local',
+    packs: 'Sobres locales',
     games: 'Minijuegos',
     racing: 'Turbo Racing',
-    index: 'Colección',
-    trade: 'Intercambio'
+    index: 'Mis Pokémon locales',
+    trade: 'Intercambio',
+    lgPokemonCloud: 'Pokémon Online',
+    lgTridents: 'Tridentes Acuáticos',
+    lgGuess: 'Adivina el número'
   };
 
   const icons = {
@@ -35,12 +38,17 @@
     games: '🎯',
     racing: '🏎️',
     index: '📖',
-    trade: '🔁'
+    trade: '🔁',
+    lgPokemonCloud: '🎒',
+    lgTridents: '🔱',
+    lgGuess: '🎲'
   };
 
   const parents = {
     battle: 'setup',
-    racing: 'games'
+    racing: 'games',
+    lgTridents: 'games',
+    lgGuess: 'games'
   };
 
   let history = [];
