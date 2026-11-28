@@ -168,6 +168,24 @@ async function connectRaceRealtime(){
     otherLane=nextLane;
   });
 
+channel.on('broadcast',{
+  event:'car_speed'
+},({payload})=>{
+  if(roomId!==currentRoom)return;
+
+  if(Number(payload?.player_number)===number)return;
+
+  const speed=Number(payload?.speed);
+
+  if(!Number.isFinite(speed))return;
+  if(speed<0 || speed>180)return;
+
+  rivalSpeed=speed;
+
+  panel.querySelector('#onlineRivalSpeed').textContent=
+    'Rival: '+Math.round(rivalSpeed)+' km/h';
+});
+
   channel.subscribe((state,err)=>{
     if(state==='SUBSCRIBED'){
       console.log('🏁 Carrera conectada en tiempo real');
