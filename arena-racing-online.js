@@ -41,6 +41,83 @@ let animation=0;
 let frame=0;
 let roomId=null;
 
+let raceChannel=null;
+let connectedRoom=null;
+
+async function connectRaceRealtime(){
+  if(!roomId || !number)return;
+
+  const db=window.arenaOnlineSupabase;
+
+  if(!db){
+    console.warn('Supabase todavía no está disponible');
+    return;
+  }
+
+  if(connectedRoom===roomId && raceChannel)return;
+
+  if(raceChannel){
+    await db.removeChannel(raceChannel);
+    raceChannel=null;
+  }
+
+  connectedRoom=roomId;
+
+  const currentRoom=roomId;
+
+  const channel=db.channel(
+    'racing-room-'+currentRoom,
+    {
+      config:{
+        private:true
+      }
+    }
+  );
+
+  raceChannel=channel;
+
+  channel.on('broadcast',{
+    event:'car_move'
+  },({payload})=>{
+    if(roomId!==currentRoom)return;
+    if(Number(payload?.player_number)===number)return;
+
+    const nextLane=Number(payload?.lane);
+
+    if(!Number.isInteger(nextLane))return;
+    if(nextLane<0 || nextLane>2)return;
+
+    otherLane=nextLane;
+  });
+
+  channel.subscribe((state,err)=>{
+    if(state==='SUBSCRIBED'){
+      console.log('🏁 Carrera conectada en tiempo real');
+      panel.querySelector('#onlineRaceNotice').textContent=
+        '🟢 Conexión online activa';
+    }
+
+    if(state==='CHANNEL_ERROR' || state==='TIMED_OUT'){
+      console.error('Error Realtime:',err);
+      panel.querySelector('#onlineRaceNotice').textContent=
+        '⚠️ No se pudo conectar la carrera online';
+    }
+  });
+}
+
+function sendRaceMove(){
+  if(!raceChannel || !roomId)return;
+
+  raceChannel.send({
+    type:'broadcast',
+    event:'car_move',
+    payload:{
+      player_number:number,
+      lane:lane
+    }
+  }).catch(console.error);
+}
+
 function move(delta){
   if(panel.hidden)return;
 
