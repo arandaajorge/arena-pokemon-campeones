@@ -385,7 +385,7 @@ async function refresh(){
         const startAt=s.game_state?.start_at;
         racingStartInfo.textContent='🏁 Partida iniciada'+
           (startAt?' · Salida programada: '+new Date(startAt).toLocaleTimeString():'')+
-          '. La pista multijugador todavía está en desarrollo.';
+          '. Pista de prueba disponible debajo de los datos de la sala.';
       }
     }
 
@@ -414,6 +414,18 @@ async function refresh(){
       }
     }
 
+    // Comunica la sesión al módulo visual independiente de carreras.
+    const myRacingSeat=racingPlayers.find(p=>p.player_id===uid);
+    document.dispatchEvent(new CustomEvent('arena:online-racing-session',{
+      detail:{
+        room_id:s.room_id,
+        game_type:s.game_type,
+        room_status:s.room_status,
+        player_number:myRacingSeat?.player_number||null,
+        players:s.players||[]
+      }
+    }));
+
     roomBox.dataset.playing=
       String(s.room_status==='playing');
 
@@ -422,7 +434,7 @@ async function refresh(){
 
     status(
       s.room_status==='playing'
-      ?(s.game_type==='racing'?'Partida de carreras creada. La pista online aún está pendiente.':'Partida recuperada. El tablero jugable aún está pendiente.')
+      ?(s.game_type==='racing'?'Pista de prueba disponible. La sincronización de autos será el siguiente paso.':'Partida recuperada. El tablero jugable aún está pendiente.')
       :s.room_status==='finished'
       ?'Resultado guardado.'
       :s.game_type==='racing'?'Sala sincronizada. Marca Estoy listo para prepararte.'
