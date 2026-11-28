@@ -34,6 +34,9 @@ style="display:block;width:100%;max-width:400px;margin:auto;border-radius:14px;b
   <p id="onlineRaceSpeed" style="font-weight:bold">
     Velocidad: 0 km/h
   </p>
+  <p id="onlineRivalSpeed" style="color:#67e8f9;font-weight:bold">
+  Rival: 0 km/h
+</p>
 </div>
 
 <p id="onlineRaceNotice" aria-live="polite">
