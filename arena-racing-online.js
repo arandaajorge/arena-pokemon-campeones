@@ -326,6 +326,7 @@ function draw(){
   animation=requestAnimationFrame(draw);
 }
 
+
 function update(detail){
   if(
     !detail||
@@ -333,6 +334,7 @@ function update(detail){
     detail.room_status!=='playing'
   ){
     panel.hidden=true;
+    setAccelerating(false);
 
     if(animation)cancelAnimationFrame(animation);
     animation=0;
@@ -341,21 +343,14 @@ function update(detail){
 
   const nextId=detail.room_id;
 
-  
-
-if(roomId!==nextId){
-  roomId=nextId;
-  lane=1;
-  otherLane=1;
-  frame=0;
-  raceSpeed=0;
-  setAccelerating(false);
-}
-
-  raceSpeed=0;
-  setAccelerating(false);
-}
-
+  if(roomId!==nextId){
+    roomId=nextId;
+    lane=1;
+    otherLane=1;
+    frame=0;
+    raceSpeed=0;
+    setAccelerating(false);
+  }
 
   number=Number(detail.player_number)||1;
 
@@ -370,7 +365,9 @@ if(roomId!==nextId){
     names[0]+' 🆚 '+names[1];
 
   panel.hidden=false;
-connectRaceRealtime();
+
+  connectRaceRealtime();
+
   if(!animation)draw();
 }
 
