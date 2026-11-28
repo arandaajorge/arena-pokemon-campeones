@@ -122,7 +122,7 @@ function move(delta){
   if(panel.hidden)return;
 
   lane=Math.max(0,Math.min(2,lane+delta));
-
+sendRaceMove();
   panel.querySelector('#onlineRaceNotice').textContent=
     'Tu carril: '+(lane+1)+' de 3 · Movimiento local de prueba';
 }
