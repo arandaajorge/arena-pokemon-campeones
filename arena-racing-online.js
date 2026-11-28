@@ -36,19 +36,6 @@ style="display:block;width:100%;max-width:400px;margin:auto;border-radius:14px;b
   </p>
 </div>
 
-<div style="margin:12px auto;max-width:400px">
-  <button
-    id="onlineRaceAccelerate"
-    type="button"
-    style="width:100%;background:linear-gradient(135deg,#22c55e,#eab308);touch-action:none;user-select:none"
-  >
-    🔥 MANTENER PARA ACELERAR
-  </button>
-  <p id="onlineRaceSpeed" style="font-weight:bold">
-    Velocidad: 0 km/h
-  </p>
-</div>
-
 <p id="onlineRaceNotice" aria-live="polite">
 Prueba los controles de tu vehículo.
 </p>`;
