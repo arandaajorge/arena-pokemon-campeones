@@ -125,59 +125,6 @@ function updateRaceSpeed(time){
 
 speedFrame=requestAnimationFrame(updateRaceSpeed);
 
-let accelerating=false;
-let raceSpeed=0;
-let speedFrame=0;
-let lastSpeedTime=0;
-
-const accelerateButton=panel.querySelector('#onlineRaceAccelerate');
-const speedDisplay=panel.querySelector('#onlineRaceSpeed');
-
-function setAccelerating(value){
-  accelerating=Boolean(value)&&!panel.hidden;
-  accelerateButton.textContent=accelerating
-    ?'🔥 ACELERANDO...'
-    :'🔥 MANTENER PARA ACELERAR';
-}
-
-accelerateButton.addEventListener('pointerdown',e=>{
-  if(panel.hidden)return;
-  e.preventDefault();
-  accelerateButton.setPointerCapture(e.pointerId);
-  setAccelerating(true);
-});
-
-for(const eventName of ['pointerup','pointercancel','lostpointercapture']){
-  accelerateButton.addEventListener(eventName,()=>{
-    setAccelerating(false);
-  });
-}
-
-function updateRaceSpeed(time){
-  const dt=lastSpeedTime
-    ?Math.min((time-lastSpeedTime)/1000,0.05)
-    :0;
-
-  lastSpeedTime=time;
-
-  if(!panel.hidden &&
-     !document.getElementById('online').classList.contains('hidden')){
-
-    const acceleration=accelerating?35:-24;
-
-    raceSpeed=Math.max(
-      0,
-      Math.min(180,raceSpeed+acceleration*dt)
-    );
-
-    speedDisplay.textContent=
-      'Velocidad: '+Math.round(raceSpeed)+' km/h';
-  }else{
-    setAccelerating(false);
-    lastSpeedTime=0;
-  }
-
-  speedFrame=requestAnimationFrame(updateRaceSpeed);
 }
 
 speedFrame=requestAnimationFrame(updateRaceSpeed);
