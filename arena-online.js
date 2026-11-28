@@ -429,23 +429,7 @@ async function refresh(){
     roomBox.dataset.playing=
       String(s.room_status==='playing');
 
-    // Comunicar la partida activa a la pista multijugador.
-    const myPlayer=racingPlayers.find(
-      p=>p.player_id===uid
-    );
-
-    document.dispatchEvent(
-      new CustomEvent('arena:online-racing-session',{
-        detail:{
-          room_id:s.room_id,
-          game_type:s.game_type,
-          room_status:s.room_status,
-          player_number:myPlayer?.player_number||1,
-          players:s.players||[]
-        }
-      })
-    );
-
+    
     el('onlineLeave').disabled=
       busy||s.room_status==='playing';
 
