@@ -24,6 +24,36 @@
   const style = document.createElement('style');
 
   style.textContent = `
+    .lg-home-access {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+      margin:16px 0;
+    }
+    .lg-home-access button {
+      min-width:0;
+      min-height:86px;
+      padding:12px 8px;
+      border:1px solid #8571d9;
+      border-radius:16px;
+      background:linear-gradient(135deg,#30246d,#5840a5);
+      color:white;
+      font-size:14px;
+      line-height:1.4;
+      text-align:center;
+    }
+    .lg-home-access button span {
+      display:block;
+      font-size:27px;
+      margin-bottom:4px;
+    }
+    .lg-home-access-note {
+      grid-column:1/-1;
+      margin:0;
+      color:#f8d8ff;
+      text-align:center;
+      font-size:12px;
+    }
     .lg-library {
       display:grid;
       gap:14px;
@@ -369,6 +399,34 @@
 
   }
 
+  // ENTRADAS CLARAS DESDE EL INICIO.
+  // No se mezclan monedas ni colecciones locales con las online.
+  const home = el('home');
+  const homeMenu = home?.querySelector('.menu');
+  if (homeMenu && !el('lgHomeAccess')) {
+    const access = document.createElement('div');
+    access.id = 'lgHomeAccess';
+    access.className = 'lg-home-access';
+    access.innerHTML = `
+      <button type="button" data-lg-access="online-packs"><span>🎁</span>Tienda Pokémon online<br><small>Bono diario de 300 🪙</small></button>
+      <button type="button" data-lg-access="online-dex"><span>📖</span>Mis Pokémon online</button>
+      <button type="button" data-lg-access="local-shop"><span>🛍️</span>Tienda y sobres locales</button>
+      <button type="button" data-lg-access="local-dex"><span>📚</span>Mis Pokémon locales</button>
+      <p class="lg-home-access-note">Las monedas y cartas locales y online son independientes.</p>
+    `;
+    homeMenu.before(access);
+    access.addEventListener('click', event => {
+      const button = event.target.closest('[data-lg-access]');
+      if (!button) return;
+      switch (button.dataset.lgAccess) {
+        case 'online-packs': openCloud('packs'); break;
+        case 'online-dex': openCloud('dex'); break;
+        case 'local-shop': window.show('shop'); break;
+        case 'local-dex': window.show('index'); break;
+      }
+    });
+  }
+
   // ACCESO POKÉMON DESDE MULTIJUGADOR
 
   const onlineTools = document.createElement('div');
@@ -571,8 +629,6 @@
 
   // ACTUALIZAR ACCESOS DEL INICIO
 
-  const home = el('home');
-
   home?.addEventListener(
     'click',
     event => {
@@ -647,15 +703,17 @@
 
   const previousShow = window.show;
 
-  window.show = function(id) {
+  window.show = function(id, ...args) {
 
-    previousShow(id);
+    const result = previousShow.call(this, id, ...args);
 
     updateNavigation();
 
     requestAnimationFrame(
       updateNavigation
     );
+
+    return result;
 
   };
 
