@@ -107,6 +107,24 @@ function updateRaceSpeed(time){
 
     speedDisplay.textContent=
       'Velocidad: '+Math.round(raceSpeed)+' km/h';
+    
+if(
+  raceChannel &&
+  raceChannel.state==='joined' &&
+  time-lastSpeedSent>=200
+){
+  lastSpeedSent=time;
+
+  raceChannel.send({
+    type:'broadcast',
+    event:'car_speed',
+    payload:{
+      player_number:number,
+      speed:Math.round(raceSpeed)
+    }
+  }).catch(console.error);
+}
+
   }else{
     setAccelerating(false);
     lastSpeedTime=0;
