@@ -75,18 +75,57 @@ function setAccelerating(value){
     :'🔥 MANTENER PARA ACELERAR';
 }
 
+
+
+let activePointer=null;
+
 accelerateButton.addEventListener('pointerdown',e=>{
-  if(panel.hidden)return;
+  if(panel.hidden || activePointer!==null)return;
+
   e.preventDefault();
-  accelerateButton.setPointerCapture(e.pointerId);
+
+  activePointer=e.pointerId;
   setAccelerating(true);
+
+  try{
+    accelerateButton.setPointerCapture(e.pointerId);
+  }catch(error){
+    console.warn('No se pudo capturar el toque:',error);
+  }
 });
 
-for(const eventName of ['pointerup','pointercancel','lostpointercapture']){
-  accelerateButton.addEventListener(eventName,()=>{
-    setAccelerating(false);
-  });
+function stopAccelerating(e){
+  if(
+    e &&
+    activePointer!==null &&
+    e.pointerId!==activePointer
+  )return;
+
+  activePointer=null;
+  setAccelerating(false);
 }
+
+for(const eventName of [
+  'pointerup',
+  'pointercancel',
+  'lostpointercapture'
+]){
+  accelerateButton.addEventListener(
+    eventName,
+    stopAccelerating
+  );
+}
+
+window.addEventListener('pointerup',stopAccelerating);
+window.addEventListener('pointercancel',stopAccelerating);
+
+window.addEventListener('blur',()=>{
+  stopAccelerating();
+});
+
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)stopAccelerating();
+});
 
 function updateRaceSpeed(time){
   const dt=lastSpeedTime
