@@ -100,6 +100,26 @@ const racingReadyButton=button('✅ Estoy listo',()=>run(async()=>{
 racingReadyPanel.append(racingReadyInfo,racingReadyButton);
 roomBox.append(racingReadyPanel);
 
+// Inicio de partida: solo el anfitrión puede ejecutarlo.
+// La pista jugable y la sincronización de autos se implementarán después.
+const racingStartPanel=node('div','');
+racingStartPanel.id='racingStartPanel';
+racingStartPanel.hidden=true;
+racingStartPanel.style.margin='16px 0';
+const racingStartInfo=node('p','');
+const racingStartButton=button('🏁 Iniciar carrera',()=>run(async()=>{
+  if(!selected||!uid)throw Error('Abre primero una sala');
+  const roomId=selected;
+  const result=check(await db.rpc('start_racing_match',{
+    p_room_id:roomId
+  }));
+  if(!result?.success)throw Error('No se pudo iniciar la carrera');
+  status('Partida creada. Preparando la pista online.');
+  await refresh();
+}));
+racingStartPanel.append(racingStartInfo,racingStartButton);
+roomBox.append(racingStartPanel);
+
 async function connect(create){
 
   if(!window.supabase)
@@ -155,7 +175,8 @@ async function run(fn){
     el('onlineLeave'),
     recover,
     back,
-    racingReadyButton
+    racingReadyButton,
+    racingStartButton
   ])b.disabled=true;
 
   try{
@@ -177,6 +198,8 @@ async function run(fn){
       roomBox.dataset.playing==='true';
     racingReadyButton.disabled=
       busy||racingReadyPanel.hidden||racingReadyButton.dataset.member!=='true';
+    racingStartButton.disabled=
+      busy||racingStartPanel.hidden||racingStartButton.dataset.enabled!=='true';
   }
 }
 
@@ -276,6 +299,8 @@ async function refresh(){
       selected=null;
       lobby.hidden=false;
       roomBox.hidden=true;
+      racingReadyPanel.hidden=true;
+      racingStartPanel.hidden=true;
 
       status('Sesión sincronizada.');
 
@@ -327,11 +352,41 @@ async function refresh(){
       const myReady=me?.ready===true;
       const readyCount=racingPlayers.filter(p=>p.ready===true).length;
       racingReadyInfo.textContent=`Preparados: ${readyCount}/2`+
-        (readyCount===2?' · Ambos listos. Próximamente: iniciar carrera.':'');
+        (readyCount===2?' · Ambos listos.':'');
       racingReadyButton.dataset.ready=String(myReady);
       racingReadyButton.dataset.member=String(!!me);
       racingReadyButton.textContent=myReady?'↩️ Cancelar listo':'✅ Estoy listo';
       racingReadyButton.disabled=busy||!me;
+    }
+
+    // La tabla game_rooms determina el anfitrión; el apodo no se usa como identidad.
+    racingStartPanel.hidden=true;
+    racingStartButton.dataset.enabled='false';
+    if(s.game_type==='racing'){
+      if(s.room_status==='waiting'){
+        const readyCount=racingPlayers.filter(p=>p.ready===true).length;
+        const roomData=check(await db.from('game_rooms')
+          .select('host_id')
+          .eq('id',s.room_id)
+          .single());
+        const isHost=roomData.host_id===uid;
+        racingStartPanel.hidden=false;
+        racingStartButton.hidden=!isHost;
+        racingStartButton.dataset.enabled=String(isHost&&readyCount===2&&racingPlayers.length===2);
+        racingStartButton.disabled=busy||racingStartButton.dataset.enabled!=='true';
+        racingStartInfo.textContent=isHost
+          ?(readyCount===2&&racingPlayers.length===2
+            ?'Ambos listos. Puedes crear la partida.'
+            :'Espera a que ambos jugadores estén listos.')
+          :'Esperando a que el anfitrión inicie la carrera.';
+      }else if(s.room_status==='playing'){
+        racingStartPanel.hidden=false;
+        racingStartButton.hidden=true;
+        const startAt=s.game_state?.start_at;
+        racingStartInfo.textContent='🏁 Partida iniciada'+
+          (startAt?' · Salida programada: '+new Date(startAt).toLocaleTimeString():'')+
+          '. La pista multijugador todavía está en desarrollo.';
+      }
     }
 
     if(s.match_id){
@@ -367,7 +422,7 @@ async function refresh(){
 
     status(
       s.room_status==='playing'
-      ?'Partida recuperada. El tablero jugable aún está pendiente.'
+      ?(s.game_type==='racing'?'Partida de carreras creada. La pista online aún está pendiente.':'Partida recuperada. El tablero jugable aún está pendiente.')
       :s.room_status==='finished'
       ?'Resultado guardado.'
       :s.game_type==='racing'?'Sala sincronizada. Marca Estoy listo para prepararte.'
