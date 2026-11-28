@@ -9,7 +9,6 @@
   if (el('liamcitoHome')) return;
 
   document.title = 'Liamcito GameStore';
-  document.body.classList.add('liamcito-store');
 
   const brand = header.querySelector('strong');
   if (brand) {
