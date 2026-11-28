@@ -57,6 +57,8 @@ let roomId=null;
 
 let accelerating=false;
 let raceSpeed=0;
+  let rivalSpeed=0;
+let lastSpeedSent=0;
 let speedFrame=0;
 let lastSpeedTime=0;
 
