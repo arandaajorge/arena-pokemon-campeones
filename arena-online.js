@@ -130,6 +130,8 @@ async function connect(create){
     'sb_publishable_oeSBm8VNRI5Upna4skkHKg_JOB5rbDU'
   );
 
+window.arenaOnlineSupabase = db;
+
   let {session}=check(
     await db.auth.getSession()
   );
