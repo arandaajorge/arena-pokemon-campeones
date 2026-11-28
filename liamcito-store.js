@@ -71,7 +71,7 @@
       <footer class="lg-footer">🎮 Liamcito GameStore<br>Un universo de aventuras.</footer>
     </div>
   `;
-
+document.body.classList.add('liamcito-store');
   const pokemonMenu = document.createElement('dialog');
   pokemonMenu.id = 'lgPokemonMenu';
   pokemonMenu.style.cssText = `
