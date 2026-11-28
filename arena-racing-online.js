@@ -337,12 +337,16 @@ function update(detail){
 
   const nextId=detail.room_id;
 
-  if(roomId!==nextId){
-    roomId=nextId;
-    lane=1;
-    otherLane=1;
-    frame=0;
-  }
+  
+if(roomId!==nextId){
+  roomId=nextId;
+  lane=1;
+  otherLane=1;
+  frame=0;
+  raceSpeed=0;
+  setAccelerating(false);
+}
+
 
   number=Number(detail.player_number)||1;
 
